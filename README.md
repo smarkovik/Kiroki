@@ -19,6 +19,13 @@ is the Web App URL you give it during setup.
 
 ## One-time setup (about 10 minutes)
 
+> **First time doing anything like this?** Follow the
+> **[step-by-step Setup Guide](SETUP.md)** instead — it walks through every
+> click with a checkpoint after each step, including the scary-looking
+> Google authorization screen and a first-scan test at the end. The short
+> version below covers the same ground for people comfortable with Google
+> Sheets.
+
 ### Part 1 — The Google Sheet backend
 
 1. Create a new Google Sheet (or open the one you want to use). Any name is
