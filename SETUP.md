@@ -29,8 +29,8 @@ and look at your stock like a normal spreadsheet.
 > *Shop Inventory*.
 >
 > You do **not** need to create any tabs or column headers. The app creates
-> two tabs — **Inventory** and **Audit** — with the right headers all by
-> itself the first time it's used.
+> the tabs it needs — **Inventory**, **Audit**, and **Users** — with the
+> right headers all by itself the first time it's used.
 
 ---
 
@@ -128,8 +128,8 @@ This step gives the script a private web address the phone app will talk to.
 3. Tap **Test & save**. The app calls your script to make sure the link is
    right before saving it. If something's off, it tells you exactly what to
    fix (see [Troubleshooting](README.md#troubleshooting)).
-   *(If you turned on the shop PIN — Part 6 below — the app asks for it
-   here. Type it once; the phone remembers it.)*
+   *(If you set up users & PINs — Part 6 below — the app asks you to sign
+   in with your PIN here. Type it once; the phone remembers you.)*
 4. You land on the home screen with a big **Scan a part** button. The chip
    in the top corner should say **Connected**.
 5. Make it feel like a real app — add it to the home screen:
@@ -169,27 +169,37 @@ alone — it's the history book.
 
 ---
 
-## Part 6 — Optional: require a shop PIN (2 minutes)
+## Part 6 — Optional: users & PINs, so the log shows who did what (2 minutes)
 
-Skip this if only trusted phones will ever have the app. With a PIN set,
-every phone must enter it once before it can scan or change stock — and the
-check happens in your script, so it can't be bypassed.
+Skip this if it's just you and you don't care who made each change. With
+users set up, everyone signs in once with their own PIN, and the **Audit**
+tab records the person's name on every single add/remove.
 
-1. Open your spreadsheet on the computer, then **Extensions → Apps Script**.
-2. In the left sidebar, click the **⚙️ gear icon** (**Project Settings**).
-3. Scroll down to **Script properties** and click
-   **Add script property**.
-4. In **Property**, type exactly: `APP_PIN`
-   In **Value**, type the PIN you want, e.g. `2468`.
-5. Click **Save script properties**. Done — it works immediately, nothing
-   to redeploy.
+1. Open your spreadsheet. At the bottom you'll see the tabs **Inventory**,
+   **Audit**, and **Users** — they appeared when the phone first connected
+   in Part 4. Click **Users**.
+2. Under the headers, add one row per person: name in the **Name** column,
+   their PIN in the **PIN** column. For example:
 
-Changing the PIN later: come back here and edit the Value — every phone is
-asked for the new PIN the next time it's used. Removing the PIN: delete the
-property (🗑 icon next to it).
+   | Name | PIN |
+   |---|---|
+   | Marko | 2468 |
+   | Ana | 1357 |
 
-> ✅ **Checkpoint:** opening the app on a phone that hasn't entered the PIN
-> shows a **Shop PIN** screen before any scanning is possible.
+   ⚠️ Give everyone a **different** PIN — signing in is by PIN alone, and
+   the app refuses a PIN that belongs to two people.
+3. That's it. Nothing to deploy, it works immediately.
+
+From now on each phone shows a **Sign in** screen once, then remembers the
+person ("Signed in as Marko" on the home screen — with a *Switch user*
+button for shared phones).
+
+Changing someone's PIN: edit the cell — they're asked to sign in again with
+the new one. Removing someone: delete their row. Turning the whole thing
+off: delete all the rows under the headers.
+
+> ✅ **Checkpoint:** after a scan and a tap of **+ Add one**, the newest row
+> on the **Audit** tab ends with the name of the person who did it.
 
 ---
 

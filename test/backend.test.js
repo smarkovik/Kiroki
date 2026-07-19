@@ -13,7 +13,8 @@ const {
   actionForDelta,
   buildAuditRow,
   parseBody,
-  pinCheck,
+  parseUserRows,
+  authenticatePin,
   MAX_ABS_DELTA,
   MAX_START_QTY,
 } = require('../apps-script/Code.js');
@@ -106,29 +107,53 @@ test('creating with starting quantity 0 is allowed and still logs an add', () =>
   assert.equal(v.ok, true);
   assert.equal(v.startQty, 0);
   const ts = new Date('2026-07-19T12:00:00Z');
-  const row = buildAuditRow(ts, 'B2', 'Gasket', 'add', 0, 0);
+  const row = buildAuditRow(ts, 'B2', 'Gasket', 'add', 0, 0, 'Marko');
   assert.equal(row[3], 'add');
   assert.equal(row[4], 0);
   assert.equal(row[5], 0);
 });
 
-test('audit rows have the exact column order', () => {
+test('audit rows have the exact column order, user last and blank without auth', () => {
   const ts = new Date('2026-07-19T12:00:00Z');
   assert.deepEqual(
-    buildAuditRow(ts, '0421', 'Brake pad', 'remove', -1, 4),
-    [ts, '0421', 'Brake pad', 'remove', -1, 4]
+    buildAuditRow(ts, '0421', 'Brake pad', 'remove', -1, 4, 'Marko'),
+    [ts, '0421', 'Brake pad', 'remove', -1, 4, 'Marko']
+  );
+  assert.deepEqual(
+    buildAuditRow(ts, '0421', 'Brake pad', 'remove', -1, 4, null),
+    [ts, '0421', 'Brake pad', 'remove', -1, 4, '']
   );
 });
 
-test('PIN gate: disabled when unset, exact trimmed match when set', () => {
-  assert.deepEqual(pinCheck('', 'anything'), { required: false, ok: true });
-  assert.deepEqual(pinCheck(null, undefined), { required: false, ok: true });
-  assert.deepEqual(pinCheck('2468', '2468'), { required: true, ok: true });
-  assert.deepEqual(pinCheck('2468', ' 2468 '), { required: true, ok: true });
-  assert.deepEqual(pinCheck(2468, '2468'), { required: true, ok: true });
-  assert.deepEqual(pinCheck('2468', '1111'), { required: true, ok: false });
-  assert.deepEqual(pinCheck('2468', undefined), { required: true, ok: false });
-  assert.deepEqual(pinCheck('2468', ''), { required: true, ok: false });
+test('user rows: half-filled or blank rows are ignored, values trimmed', () => {
+  const users = parseUserRows([
+    ['Marko', '2468'],
+    ['', '9999'],
+    ['No Pin', ''],
+    [' Ana ', 1357],
+    [null, null],
+  ]);
+  assert.deepEqual(users, [
+    { name: 'Marko', pin: '2468' },
+    { name: 'Ana', pin: '1357' },
+  ]);
+});
+
+test('per-user PIN auth: disabled with no users, unique match required', () => {
+  assert.deepEqual(authenticatePin([], 'anything'), { required: false, ok: true, user: null });
+  const users = [
+    { name: 'Marko', pin: '2468' },
+    { name: 'Ana', pin: '1357' },
+  ];
+  assert.deepEqual(authenticatePin(users, '2468'), { required: true, ok: true, user: 'Marko' });
+  assert.deepEqual(authenticatePin(users, ' 1357 '), { required: true, ok: true, user: 'Ana' });
+  assert.equal(authenticatePin(users, '0000').ok, false);
+  assert.equal(authenticatePin(users, '').ok, false);
+  assert.equal(authenticatePin(users, undefined).ok, false);
+  const dup = authenticatePin(
+    [{ name: 'A', pin: '1111' }, { name: 'B', pin: '1111' }], '1111');
+  assert.equal(dup.ok, false);
+  assert.match(dup.message, /more than one user/);
 });
 
 test('POST body parsing accepts only a JSON object', () => {

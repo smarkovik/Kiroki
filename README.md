@@ -3,7 +3,8 @@
 A phone-based inventory tool for a small repair shop. Scan a part's barcode
 or QR label with the phone camera and add or remove one unit of stock with a
 single tap. Everything lives in a Google Sheet you already own — there is no
-server to run, no app store, no account system.
+server to run and no app store. Optional per-user PINs (managed as a plain
+tab in that same Sheet) add a sign-in step and a named audit trail.
 
 ```
 Phone browser  ──HTTPS──▶  Google Apps Script Web App  ──▶  Google Sheet
@@ -70,8 +71,9 @@ is the Web App URL you give it during setup.
 - The stock can never go below zero; the app tells you if there is nothing
   left to remove.
 - Every change is also appended to the **Audit** tab: when, which part,
-  add/remove, by how much, and the resulting quantity. The app never edits or
-  deletes audit rows.
+  add/remove, by how much, the resulting quantity — and who did it, when
+  users & PINs are set up (see below). The app never edits or deletes audit
+  rows.
 
 ## Pointing the app at a different spreadsheet
 
@@ -89,30 +91,34 @@ frozen version, not the editor's code**. Editing without deploying a new
 version changes nothing for the app. Redeploying an existing deployment
 keeps the same URL, so the phones don't need reconfiguring.
 
-## Optional: require a shop PIN
+## Optional: users & PINs (a named audit trail)
 
 Out of the box, anyone who opens the app page *and* has the Web App URL can
-scan and change stock. To require a PIN first:
+scan and change stock, and audit rows are anonymous. To require a personal
+PIN before scanning — and record **who** made every change:
 
-1. Open the Sheet's script editor (**Extensions → Apps Script**).
-2. Click **⚙️ Project Settings** (left sidebar) → scroll to
-   **Script properties** → **Add script property**.
-3. Property: `APP_PIN` — Value: your PIN (e.g. `2468`). Click
-   **Save script properties**.
+1. Open the Google Sheet and click the **Users** tab (it is created
+   automatically the first time the app connects; headers `Name`, `PIN`).
+2. Add one row per person: their name in column A, their PIN in column B —
+   e.g. `Marko | 2468`. **Each PIN must be unique** — sign-in is by PIN
+   alone, and the app refuses a PIN assigned to two people rather than
+   guess who it was.
 
-That's all — no redeployment needed, it takes effect immediately. Each phone
-now asks for the PIN once (a lock screen before scanning) and remembers it.
-Every lookup and stock write is checked by the backend, not just the app, so
-the PIN can't be skipped by calling the URL directly.
+That's all — no redeployment, it takes effect immediately. Each phone now
+shows a **Sign in** screen once, remembers the person from then on
+("Signed in as Marko" on the home screen, with a *Switch user* button), and
+every row in the **Audit** tab gets their name in the **User** column.
 
-To **change** the PIN, edit the property's value; phones holding the old PIN
-are locked out on their next action and asked for the new one. To **remove**
-the PIN requirement, delete the property.
+The check happens in the backend, not just the app, so it can't be skipped
+by calling the URL directly. To **change** a PIN, edit the cell — that
+person signs in again with the new PIN on their next action. To **remove**
+someone, delete their row. To **switch PINs off entirely**, delete all the
+user rows — the app goes back to open, anonymous mode.
 
-*Honest security note:* this is one shared PIN sent over HTTPS and remembered
-on each phone — right-sized for keeping a shared-workshop phone or a curious
-visitor from tapping buttons, not for defending against a determined
-attacker. Keeping the Web App URL private is still the main gate.
+*Honest security note:* PINs travel over HTTPS and are remembered on each
+phone — right-sized for knowing who did what and keeping a curious visitor
+from tapping buttons, not for defending against a determined attacker.
+Keeping the Web App URL private is still the main gate.
 
 ## If the Web App URL leaks
 
@@ -135,7 +141,8 @@ Google account.
 | Camera never opens / no permission prompt | Make sure you opened the `https://…github.io…` address, then allow Camera in the browser's site settings. |
 | "scanner library failed to load" | The phone couldn't reach either CDN — check WiFi and tap Scan again. |
 | "Backend took too long" / "Could not reach the backend" | Check WiFi, then verify the URL under **Backend settings** with Test & save. |
-| "Wrong PIN" / PIN screen keeps coming back | The `APP_PIN` script property was changed — enter the current PIN. If nobody set one on purpose, delete the property (see the PIN section above). |
+| "Wrong PIN" / sign-in screen keeps coming back | Your row in the **Users** tab was changed or removed — check your PIN there. If nobody set up users on purpose, delete all rows under the headers (see the users section above). |
+| "This PIN is assigned to more than one user" | Two rows in the **Users** tab share a PIN — give one of them a different PIN. |
 
 ## For developers
 

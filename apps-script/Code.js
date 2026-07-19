@@ -25,20 +25,18 @@
 // version.
 const SHEET_ID = '';
 
-// Optional shared shop PIN. The PIN lives OUTSIDE this file so the repo
-// never contains a credential: in the Apps Script editor open ⚙️ Project
-// Settings → Script properties and add a property named APP_PIN with the
-// PIN as its value. Absent or empty = no PIN required. It is read at
-// request time, so changing or removing it takes effect immediately —
-// no new deployment version needed.
-const PIN_PROPERTY_KEY = 'APP_PIN';
-
 const APP_ID = 'inventory-scanner';
 
 const INVENTORY_SHEET_NAME = 'Inventory';
 const AUDIT_SHEET_NAME = 'Audit';
+// Optional per-user PINs live in the Users tab (never in this file or the
+// repo): one row per person, Name in column A, PIN in column B. With no
+// user rows, no PIN is required. Rows are read at request time, so adding,
+// changing, or removing users takes effect immediately — no redeployment.
+const USERS_SHEET_NAME = 'Users';
 const INVENTORY_HEADERS = ['Barcode', 'Part Name', 'Quantity', 'Last Updated'];
-const AUDIT_HEADERS = ['Timestamp', 'Barcode', 'Part Name', 'Action', 'Qty Change', 'Resulting Quantity'];
+const AUDIT_HEADERS = ['Timestamp', 'Barcode', 'Part Name', 'Action', 'Qty Change', 'Resulting Quantity', 'User'];
+const USERS_HEADERS = ['Name', 'PIN'];
 
 const MAX_BARCODE_LENGTH = 128;
 const MAX_NAME_LENGTH = 200;
@@ -125,9 +123,9 @@ function actionForDelta(delta) {
 }
 
 // Column order: Timestamp, Barcode, Part Name, Action, Qty Change,
-// Resulting Quantity.
-function buildAuditRow(timestamp, barcode, name, action, qtyChange, resultingQty) {
-  return [timestamp, barcode, name, action, qtyChange, resultingQty];
+// Resulting Quantity, User (blank when PINs are not configured).
+function buildAuditRow(timestamp, barcode, name, action, qtyChange, resultingQty, user) {
+  return [timestamp, barcode, name, action, qtyChange, resultingQty, user || ''];
 }
 
 // A POST body is only usable if it parses to a plain JSON object.
@@ -148,12 +146,34 @@ function normalizePin(value) {
   return String(value).trim();
 }
 
-// PIN gate. An unset/blank stored PIN disables authentication entirely;
-// otherwise the provided PIN must match exactly (both sides trimmed).
-function pinCheck(storedPin, providedPin) {
-  const stored = normalizePin(storedPin);
-  if (stored === '') return { required: false, ok: true };
-  return { required: true, ok: normalizePin(providedPin) === stored };
+// Rows from the Users tab (A=Name, B=PIN) → [{name, pin}]. Rows missing
+// either value are ignored, so half-filled rows can't lock anyone out.
+function parseUserRows(values) {
+  const users = [];
+  for (let i = 0; i < values.length; i++) {
+    const name = values[i][0] === null || values[i][0] === undefined ? '' : String(values[i][0]).trim();
+    const pin = normalizePin(values[i][1]);
+    if (name && pin) users.push({ name: name, pin: pin });
+  }
+  return users;
+}
+
+// Per-user PIN auth. No configured users = auth disabled. A PIN shared by
+// two users is refused outright — otherwise the audit trail would silently
+// attribute their actions to whoever happens to be listed first.
+function authenticatePin(users, providedPin) {
+  if (!users || users.length === 0) return { required: false, ok: true, user: null };
+  const pin = normalizePin(providedPin);
+  if (pin === '') return { required: true, ok: false, user: null };
+  const matches = users.filter(function (u) { return u.pin === pin; });
+  if (matches.length === 1) return { required: true, ok: true, user: matches[0].name };
+  if (matches.length > 1) {
+    return {
+      required: true, ok: false, user: null,
+      message: 'This PIN is assigned to more than one user — fix the Users tab.'
+    };
+  }
+  return { required: true, ok: false, user: null };
 }
 
 /* ========================= Apps Script entry points ======================= */
@@ -161,19 +181,24 @@ function pinCheck(storedPin, providedPin) {
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
-    const auth = pinCheck(getStoredPin(), params.pin);
+    const sheets = getSheets();
+    const auth = authenticatePin(readUsers(sheets.users), params.pin);
     if (params.action === 'ping') {
       const out = { ok: true, app: APP_ID, pinRequired: auth.required };
       // Only report a verdict when a PIN was actually offered, so ping
       // stays usable for URL verification without leaking anything.
-      if (auth.required && params.pin !== undefined) out.pinOk = auth.ok;
+      if (auth.required && params.pin !== undefined) {
+        out.pinOk = auth.ok;
+        if (auth.ok) out.user = auth.user;
+        if (auth.message) out.message = auth.message;
+      }
       return jsonResponse(out);
     }
     if (params.action === 'lookup') {
-      if (!auth.ok) return jsonResponse(unauthorized());
+      if (!auth.ok) return jsonResponse(unauthorized(auth.message));
       const barcode = normalizeBarcode(params.barcode);
       if (!barcode) return jsonResponse(badRequest('Missing barcode.'));
-      const row = findInventoryRow(getSheets().inventory, barcode);
+      const row = findInventoryRow(sheets.inventory, barcode);
       if (!row) return jsonResponse({ ok: true, found: false, barcode: barcode });
       return jsonResponse({ ok: true, found: true, barcode: row.barcode, name: row.name, qty: row.qty });
     }
@@ -187,9 +212,10 @@ function doPost(e) {
   try {
     const body = parseBody(e && e.postData && e.postData.contents);
     if (!body) return jsonResponse(badRequest('Request body must be a JSON object.'));
-    if (!pinCheck(getStoredPin(), body.pin).ok) return jsonResponse(unauthorized());
-    if (body.action === 'adjust') return jsonResponse(handleAdjust(body));
-    if (body.action === 'create') return jsonResponse(handleCreate(body));
+    const auth = authenticatePin(readUsers(getSheets().users), body.pin);
+    if (!auth.ok) return jsonResponse(unauthorized(auth.message));
+    if (body.action === 'adjust') return jsonResponse(handleAdjust(body, auth.user));
+    if (body.action === 'create') return jsonResponse(handleCreate(body, auth.user));
     return jsonResponse(badRequest('Unknown or missing action.'));
   } catch (err) {
     return jsonResponse(serverError(err));
@@ -198,7 +224,7 @@ function doPost(e) {
 
 /* ============================= Write handlers ============================= */
 
-function handleAdjust(body) {
+function handleAdjust(body, userName) {
   const v = validateAdjust(body);
   if (!v.ok) return v;
   return withScriptLock(function () {
@@ -219,13 +245,13 @@ function handleAdjust(body) {
     sheets.inventory.getRange(row.rowIndex, 3, 1, 2).setValues([[applied.qty, now]]);
     const action = actionForDelta(v.delta);
     const result = { ok: true, barcode: row.barcode, name: row.name, qty: applied.qty, action: action };
-    appendAuditGuarded(sheets.audit, buildAuditRow(now, row.barcode, row.name, action, v.delta, applied.qty), result);
+    appendAuditGuarded(sheets.audit, buildAuditRow(now, row.barcode, row.name, action, v.delta, applied.qty, userName), result);
     SpreadsheetApp.flush();
     return result;
   });
 }
 
-function handleCreate(body) {
+function handleCreate(body, userName) {
   const v = validateCreate(body);
   if (!v.ok) return v;
   return withScriptLock(function () {
@@ -248,7 +274,7 @@ function handleCreate(body) {
     sheets.inventory.getRange(rowIndex, 1).setNumberFormat('@');
     sheets.inventory.getRange(rowIndex, 1, 1, 4).setValues([[v.barcode, v.name, v.startQty, now]]);
     const result = { ok: true, created: true, barcode: v.barcode, name: v.name, qty: v.startQty, action: 'add' };
-    appendAuditGuarded(sheets.audit, buildAuditRow(now, v.barcode, v.name, 'add', v.startQty, v.startQty), result);
+    appendAuditGuarded(sheets.audit, buildAuditRow(now, v.barcode, v.name, 'add', v.startQty, v.startQty, userName), result);
     SpreadsheetApp.flush();
     return result;
   });
@@ -276,8 +302,15 @@ function getSheets() {
   const ss = getSpreadsheet();
   return {
     inventory: getOrCreateSheet(ss, INVENTORY_SHEET_NAME, INVENTORY_HEADERS),
-    audit: getOrCreateSheet(ss, AUDIT_SHEET_NAME, AUDIT_HEADERS)
+    audit: getOrCreateSheet(ss, AUDIT_SHEET_NAME, AUDIT_HEADERS),
+    users: getOrCreateSheet(ss, USERS_SHEET_NAME, USERS_HEADERS)
   };
+}
+
+function readUsers(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return parseUserRows(sheet.getRange(2, 1, lastRow - 1, 2).getValues());
 }
 
 function getOrCreateSheet(ss, name, headers) {
@@ -322,12 +355,8 @@ function appendAuditGuarded(auditSheet, rowValues, result) {
   }
 }
 
-function getStoredPin() {
-  return PropertiesService.getScriptProperties().getProperty(PIN_PROPERTY_KEY) || '';
-}
-
-function unauthorized() {
-  return { ok: false, error: 'unauthorized', message: 'Wrong or missing PIN.' };
+function unauthorized(message) {
+  return { ok: false, error: 'unauthorized', message: message || 'Wrong or missing PIN.' };
 }
 
 function serverError(err) {
@@ -352,7 +381,8 @@ if (typeof module !== 'undefined' && module.exports) {
     buildAuditRow: buildAuditRow,
     parseBody: parseBody,
     normalizePin: normalizePin,
-    pinCheck: pinCheck,
+    parseUserRows: parseUserRows,
+    authenticatePin: authenticatePin,
     MAX_BARCODE_LENGTH: MAX_BARCODE_LENGTH,
     MAX_NAME_LENGTH: MAX_NAME_LENGTH,
     MAX_ABS_DELTA: MAX_ABS_DELTA,

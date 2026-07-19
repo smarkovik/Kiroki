@@ -263,14 +263,14 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
 
   <section id="screen-lock" class="screen">
     <div class="card">
-      <h2>Shop PIN</h2>
-      <p class="muted center">This inventory is PIN-protected. Enter the shop
-        PIN once — this phone will remember it.</p>
-      <label class="fieldlabel" for="lock-pin">PIN</label>
+      <h2>Sign in</h2>
+      <p class="muted center">Enter your PIN from the shop's user list.
+        You only do this once — this phone will remember you.</p>
+      <label class="fieldlabel" for="lock-pin">Your PIN</label>
       <input id="lock-pin" class="input" type="password" autocomplete="off"
              autocapitalize="off" spellcheck="false">
       <p id="lock-error" class="error-text" hidden></p>
-      <button id="btn-unlock" class="btn">Unlock</button>
+      <button id="btn-unlock" class="btn">Sign in</button>
       <button id="lock-settings" class="btn btn-text">Backend settings</button>
     </div>
   </section>
@@ -283,6 +283,8 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
     </button>
     <p class="muted center">Point the camera at a part's barcode or QR label
       to add or remove stock.</p>
+    <p id="home-user" class="muted center" hidden></p>
+    <button id="btn-switch" class="btn btn-text" hidden>Switch user</button>
     <button id="btn-settings" class="btn btn-text">Backend settings</button>
   </section>
 
@@ -354,6 +356,7 @@ const API_URL = '';
 const APP_PING_ID = 'inventory-scanner';
 const STORAGE_KEY = 'inventory-scanner-api-url';
 const PIN_STORAGE_KEY = 'inventory-scanner-pin';
+const USER_STORAGE_KEY = 'inventory-scanner-user';
 const REQUEST_TIMEOUT_MS = 20000;
 const AUTO_RETURN_MS = 1300;
 
@@ -441,6 +444,30 @@ function setPin(pin) {
 
 function clearPin() {
   try { localStorage.removeItem(PIN_STORAGE_KEY); } catch (e) { /* private mode */ }
+}
+
+function getUserName() {
+  try { return localStorage.getItem(USER_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function setUserName(name) {
+  try {
+    if (name) localStorage.setItem(USER_STORAGE_KEY, name);
+    else localStorage.removeItem(USER_STORAGE_KEY);
+  } catch (e) { /* private mode */ }
+}
+
+function signOut() {
+  clearPin();
+  setUserName('');
+  updateSignedIn();
+}
+
+function updateSignedIn() {
+  const name = getUserName();
+  $('home-user').textContent = name ? 'Signed in as ' + name : '';
+  $('home-user').hidden = !name;
+  $('btn-switch').hidden = !name;
 }
 
 // Attach the remembered PIN to a request when the device has one.
@@ -646,8 +673,8 @@ async function lookupBarcode(barcode) {
     } else if (data.ok) {
       showUnknownScreen(data.barcode || barcode);
     } else if (data.error === 'unauthorized') {
-      clearPin();
-      showLockScreen(data.message || 'Enter the shop PIN.');
+      signOut();
+      showLockScreen(data.message || 'Enter your PIN.');
     } else {
       showScreen('home');
       showHomeError(data.message || 'The backend rejected the lookup.');
@@ -722,8 +749,8 @@ async function adjustBy(delta) {
       // Row vanished from the Sheet mid-flow — treat as a new part.
       showUnknownScreen(currentPart.barcode);
     } else if (data.error === 'unauthorized') {
-      clearPin();
-      showLockScreen('The PIN changed — enter the current shop PIN.');
+      signOut();
+      showLockScreen(data.message || 'Your PIN is no longer accepted — enter the current one.');
     } else if (data.error === 'busy') {
       showPartError('The backend is busy with another update — try again in a moment.');
     } else {
@@ -784,8 +811,8 @@ async function createPart() {
       showPartCard({ barcode: unknownBarcode, name: data.name, qty: data.qty },
         'This part was already in the inventory — showing its current stock.');
     } else if (data.error === 'unauthorized') {
-      clearPin();
-      showLockScreen('The PIN changed — enter the current shop PIN.');
+      signOut();
+      showLockScreen(data.message || 'Your PIN is no longer accepted — enter the current one.');
     } else {
       showUnknownError(data.message || 'The backend rejected the new part.');
     }
@@ -837,14 +864,16 @@ async function unlock() {
     const data = await pingUrl(requireUrl(), pin);
     if (data && data.ok === true && data.app === APP_PING_ID) {
       if (data.pinRequired === false) {
-        clearPin(); // backend no longer asks for one
+        signOut(); // backend no longer asks for one
         showScreen('home');
       } else if (data.pinOk === true) {
         setPin(pin);
-        showSnackbar('Unlocked');
+        setUserName(data.user || '');
+        updateSignedIn();
+        showSnackbar(data.user ? 'Signed in as ' + data.user : 'Signed in');
         showScreen('home');
       } else {
-        showLockError('Wrong PIN — try again.');
+        showLockError(data.message || 'Wrong PIN — try again.');
       }
     } else {
       showLockError('That URL is not this app\'s backend — check Backend settings.');
@@ -889,9 +918,11 @@ async function testAndSave() {
       safeSetStored(url);
       showSnackbar('Backend connected');
       if (data.pinRequired && data.pinOk !== true) {
-        clearPin();
+        signOut();
         showLockScreen();
       } else {
+        if (data.pinRequired) { setUserName(data.user || ''); }
+        updateSignedIn();
         showScreen('home');
       }
     } else {
@@ -917,6 +948,7 @@ function boot() {
   $('btn-scan').addEventListener('click', startScanner);
   $('btn-settings').addEventListener('click', () => { clearAutoReturn(); setupReturnTo = 'home'; openSetup(); });
   $('lock-settings').addEventListener('click', () => { setupReturnTo = 'lock'; openSetup(); });
+  $('btn-switch').addEventListener('click', () => { signOut(); showLockScreen(); });
   $('btn-unlock').addEventListener('click', unlock);
   $('lock-pin').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') unlock(); });
   $('setup-save').addEventListener('click', testAndSave);
@@ -930,6 +962,8 @@ function boot() {
   $('btn-create').addEventListener('click', createPart);
   $('btn-cancel-create').addEventListener('click', () => startScanner());
 
+  updateSignedIn();
+
   const url = getApiUrl();
   if (!url) {
     setChip('warn', 'Setup needed');
@@ -941,9 +975,14 @@ function boot() {
       if (!(data && data.ok === true && data.app === APP_PING_ID)) {
         setChip('err', 'Wrong backend');
       } else if (data.pinRequired && data.pinOk !== true) {
-        // No PIN remembered, or the shop PIN changed — ask before scanning.
-        clearPin();
+        // No PIN remembered, or this user's PIN changed — sign in first.
+        signOut();
         showLockScreen();
+      } else if (data.pinRequired) {
+        setUserName(data.user || '');
+        updateSignedIn();
+      } else if (getUserName()) {
+        signOut(); // PINs were switched off — drop the stale identity
       }
     }).catch(() => { /* chip already set by apiFetch */ });
   }
