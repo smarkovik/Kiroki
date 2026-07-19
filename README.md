@@ -89,6 +89,31 @@ frozen version, not the editor's code**. Editing without deploying a new
 version changes nothing for the app. Redeploying an existing deployment
 keeps the same URL, so the phones don't need reconfiguring.
 
+## Optional: require a shop PIN
+
+Out of the box, anyone who opens the app page *and* has the Web App URL can
+scan and change stock. To require a PIN first:
+
+1. Open the Sheet's script editor (**Extensions → Apps Script**).
+2. Click **⚙️ Project Settings** (left sidebar) → scroll to
+   **Script properties** → **Add script property**.
+3. Property: `APP_PIN` — Value: your PIN (e.g. `2468`). Click
+   **Save script properties**.
+
+That's all — no redeployment needed, it takes effect immediately. Each phone
+now asks for the PIN once (a lock screen before scanning) and remembers it.
+Every lookup and stock write is checked by the backend, not just the app, so
+the PIN can't be skipped by calling the URL directly.
+
+To **change** the PIN, edit the property's value; phones holding the old PIN
+are locked out on their next action and asked for the new one. To **remove**
+the PIN requirement, delete the property.
+
+*Honest security note:* this is one shared PIN sent over HTTPS and remembered
+on each phone — right-sized for keeping a shared-workshop phone or a curious
+visitor from tapping buttons, not for defending against a determined
+attacker. Keeping the Web App URL private is still the main gate.
+
 ## If the Web App URL leaks
 
 The URL is unguessable but it is the only gate, so if it ever gets out:
@@ -110,6 +135,7 @@ Google account.
 | Camera never opens / no permission prompt | Make sure you opened the `https://…github.io…` address, then allow Camera in the browser's site settings. |
 | "scanner library failed to load" | The phone couldn't reach either CDN — check WiFi and tap Scan again. |
 | "Backend took too long" / "Could not reach the backend" | Check WiFi, then verify the URL under **Backend settings** with Test & save. |
+| "Wrong PIN" / PIN screen keeps coming back | The `APP_PIN` script property was changed — enter the current PIN. If nobody set one on purpose, delete the property (see the PIN section above). |
 
 ## For developers
 

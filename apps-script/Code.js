@@ -25,6 +25,14 @@
 // version.
 const SHEET_ID = '';
 
+// Optional shared shop PIN. The PIN lives OUTSIDE this file so the repo
+// never contains a credential: in the Apps Script editor open ⚙️ Project
+// Settings → Script properties and add a property named APP_PIN with the
+// PIN as its value. Absent or empty = no PIN required. It is read at
+// request time, so changing or removing it takes effect immediately —
+// no new deployment version needed.
+const PIN_PROPERTY_KEY = 'APP_PIN';
+
 const APP_ID = 'inventory-scanner';
 
 const INVENTORY_SHEET_NAME = 'Inventory';
@@ -135,15 +143,34 @@ function parseBody(text) {
   return parsed;
 }
 
+function normalizePin(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+// PIN gate. An unset/blank stored PIN disables authentication entirely;
+// otherwise the provided PIN must match exactly (both sides trimmed).
+function pinCheck(storedPin, providedPin) {
+  const stored = normalizePin(storedPin);
+  if (stored === '') return { required: false, ok: true };
+  return { required: true, ok: normalizePin(providedPin) === stored };
+}
+
 /* ========================= Apps Script entry points ======================= */
 
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
+    const auth = pinCheck(getStoredPin(), params.pin);
     if (params.action === 'ping') {
-      return jsonResponse({ ok: true, app: APP_ID });
+      const out = { ok: true, app: APP_ID, pinRequired: auth.required };
+      // Only report a verdict when a PIN was actually offered, so ping
+      // stays usable for URL verification without leaking anything.
+      if (auth.required && params.pin !== undefined) out.pinOk = auth.ok;
+      return jsonResponse(out);
     }
     if (params.action === 'lookup') {
+      if (!auth.ok) return jsonResponse(unauthorized());
       const barcode = normalizeBarcode(params.barcode);
       if (!barcode) return jsonResponse(badRequest('Missing barcode.'));
       const row = findInventoryRow(getSheets().inventory, barcode);
@@ -160,6 +187,7 @@ function doPost(e) {
   try {
     const body = parseBody(e && e.postData && e.postData.contents);
     if (!body) return jsonResponse(badRequest('Request body must be a JSON object.'));
+    if (!pinCheck(getStoredPin(), body.pin).ok) return jsonResponse(unauthorized());
     if (body.action === 'adjust') return jsonResponse(handleAdjust(body));
     if (body.action === 'create') return jsonResponse(handleCreate(body));
     return jsonResponse(badRequest('Unknown or missing action.'));
@@ -294,6 +322,14 @@ function appendAuditGuarded(auditSheet, rowValues, result) {
   }
 }
 
+function getStoredPin() {
+  return PropertiesService.getScriptProperties().getProperty(PIN_PROPERTY_KEY) || '';
+}
+
+function unauthorized() {
+  return { ok: false, error: 'unauthorized', message: 'Wrong or missing PIN.' };
+}
+
 function serverError(err) {
   return { ok: false, error: 'server_error', message: String((err && err.message) || err) };
 }
@@ -315,6 +351,8 @@ if (typeof module !== 'undefined' && module.exports) {
     actionForDelta: actionForDelta,
     buildAuditRow: buildAuditRow,
     parseBody: parseBody,
+    normalizePin: normalizePin,
+    pinCheck: pinCheck,
     MAX_BARCODE_LENGTH: MAX_BARCODE_LENGTH,
     MAX_NAME_LENGTH: MAX_NAME_LENGTH,
     MAX_ABS_DELTA: MAX_ABS_DELTA,

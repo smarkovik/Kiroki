@@ -261,6 +261,20 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
     </div>
   </section>
 
+  <section id="screen-lock" class="screen">
+    <div class="card">
+      <h2>Shop PIN</h2>
+      <p class="muted center">This inventory is PIN-protected. Enter the shop
+        PIN once — this phone will remember it.</p>
+      <label class="fieldlabel" for="lock-pin">PIN</label>
+      <input id="lock-pin" class="input" type="password" autocomplete="off"
+             autocapitalize="off" spellcheck="false">
+      <p id="lock-error" class="error-text" hidden></p>
+      <button id="btn-unlock" class="btn">Unlock</button>
+      <button id="lock-settings" class="btn btn-text">Backend settings</button>
+    </div>
+  </section>
+
   <section id="screen-home" class="screen">
     <p id="home-error" class="error-text" hidden></p>
     <button id="btn-scan" class="btn">
@@ -339,6 +353,7 @@ const API_URL = '';
 
 const APP_PING_ID = 'inventory-scanner';
 const STORAGE_KEY = 'inventory-scanner-api-url';
+const PIN_STORAGE_KEY = 'inventory-scanner-pin';
 const REQUEST_TIMEOUT_MS = 20000;
 const AUTO_RETURN_MS = 1300;
 
@@ -349,7 +364,7 @@ const SCANNER_CDNS = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['setup', 'home', 'scanner', 'busy', 'part', 'unknown'];
+const SCREENS = ['setup', 'lock', 'home', 'scanner', 'busy', 'part', 'unknown'];
 
 let currentPart = null;      // { barcode, name, qty }
 let unknownBarcode = null;
@@ -359,6 +374,7 @@ let inFlight = false;
 let autoReturnTimer = null;
 let snackbarTimer = null;
 let scannerLibPromise = null;
+let setupReturnTo = 'home';
 
 /* ------------------------------ utilities ------------------------------ */
 
@@ -413,6 +429,25 @@ function safeSetStored(url) {
 // Resolution order: hardcoded constant → saved on device → none (setup).
 function getApiUrl() {
   return API_URL || safeGetStored() || '';
+}
+
+function getPin() {
+  try { return localStorage.getItem(PIN_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function setPin(pin) {
+  try { localStorage.setItem(PIN_STORAGE_KEY, pin); } catch (e) { /* private mode */ }
+}
+
+function clearPin() {
+  try { localStorage.removeItem(PIN_STORAGE_KEY); } catch (e) { /* private mode */ }
+}
+
+// Attach the remembered PIN to a request when the device has one.
+function withPin(obj) {
+  const pin = getPin();
+  if (pin) obj.pin = pin;
+  return obj;
 }
 
 /* ----------------------------- API client ------------------------------
@@ -474,8 +509,10 @@ function apiPost(body) {
   });
 }
 
-function pingUrl(url) {
-  return apiFetch(url + '?' + new URLSearchParams({ action: 'ping' }).toString());
+function pingUrl(url, pin) {
+  const params = { action: 'ping' };
+  if (pin) params.pin = pin;
+  return apiFetch(url + '?' + new URLSearchParams(params).toString());
 }
 
 /* --------------------------- scanner library --------------------------- */
@@ -603,11 +640,14 @@ async function lookupBarcode(barcode) {
   }
   showScreen('busy');
   try {
-    const data = await apiGet({ action: 'lookup', barcode: barcode });
+    const data = await apiGet(withPin({ action: 'lookup', barcode: barcode }));
     if (data.ok && data.found) {
       showPartCard({ barcode: data.barcode, name: data.name, qty: data.qty });
     } else if (data.ok) {
       showUnknownScreen(data.barcode || barcode);
+    } else if (data.error === 'unauthorized') {
+      clearPin();
+      showLockScreen(data.message || 'Enter the shop PIN.');
     } else {
       showScreen('home');
       showHomeError(data.message || 'The backend rejected the lookup.');
@@ -657,7 +697,7 @@ async function adjustBy(delta) {
   hidePartMessages();
   setDisabled(['btn-add', 'btn-remove', 'btn-scan-next'], true);
   try {
-    const data = await apiPost({ action: 'adjust', barcode: currentPart.barcode, delta: delta });
+    const data = await apiPost(withPin({ action: 'adjust', barcode: currentPart.barcode, delta: delta }));
     if (data.ok) {
       currentPart.name = data.name;
       currentPart.qty = data.qty;
@@ -681,6 +721,9 @@ async function adjustBy(delta) {
     } else if (data.error === 'unknown_barcode') {
       // Row vanished from the Sheet mid-flow — treat as a new part.
       showUnknownScreen(currentPart.barcode);
+    } else if (data.error === 'unauthorized') {
+      clearPin();
+      showLockScreen('The PIN changed — enter the current shop PIN.');
     } else if (data.error === 'busy') {
       showPartError('The backend is busy with another update — try again in a moment.');
     } else {
@@ -725,7 +768,7 @@ async function createPart() {
   inFlight = true;
   setDisabled(['btn-create', 'btn-cancel-create'], true);
   try {
-    const data = await apiPost({ action: 'create', barcode: unknownBarcode, name: name, startQty: qty });
+    const data = await apiPost(withPin({ action: 'create', barcode: unknownBarcode, name: name, startQty: qty }));
     if (data.ok) {
       vibrate(40);
       showPartCard({ barcode: data.barcode, name: data.name, qty: data.qty });
@@ -740,6 +783,9 @@ async function createPart() {
       // Row appeared in the Sheet mid-flow — show the live row instead.
       showPartCard({ barcode: unknownBarcode, name: data.name, qty: data.qty },
         'This part was already in the inventory — showing its current stock.');
+    } else if (data.error === 'unauthorized') {
+      clearPin();
+      showLockScreen('The PIN changed — enter the current shop PIN.');
     } else {
       showUnknownError(data.message || 'The backend rejected the new part.');
     }
@@ -760,6 +806,55 @@ function showHomeError(msg) {
 
 function hideHomeError() {
   $('home-error').hidden = true;
+}
+
+/* ------------------------------ lock screen ----------------------------- */
+
+function showLockScreen(msg) {
+  $('lock-pin').value = '';
+  $('lock-error').hidden = true;
+  if (msg) {
+    $('lock-error').textContent = msg;
+    $('lock-error').hidden = false;
+  }
+  setChip('warn', 'PIN needed');
+  showScreen('lock');
+}
+
+function showLockError(msg) {
+  $('lock-error').textContent = msg;
+  $('lock-error').hidden = false;
+}
+
+async function unlock() {
+  if (inFlight) return;
+  const pin = $('lock-pin').value.trim();
+  $('lock-error').hidden = true;
+  if (!pin) { showLockError('Enter the PIN.'); return; }
+  inFlight = true;
+  setDisabled(['btn-unlock'], true);
+  try {
+    const data = await pingUrl(requireUrl(), pin);
+    if (data && data.ok === true && data.app === APP_PING_ID) {
+      if (data.pinRequired === false) {
+        clearPin(); // backend no longer asks for one
+        showScreen('home');
+      } else if (data.pinOk === true) {
+        setPin(pin);
+        showSnackbar('Unlocked');
+        showScreen('home');
+      } else {
+        showLockError('Wrong PIN — try again.');
+      }
+    } else {
+      showLockError('That URL is not this app\'s backend — check Backend settings.');
+    }
+  } catch (err) {
+    showLockError(err.message);
+  } finally {
+    setDisabled(['btn-unlock'], false);
+    inFlight = false;
+  }
 }
 
 /* -------------------------------- setup -------------------------------- */
@@ -789,11 +884,16 @@ async function testAndSave() {
   setDisabled(['setup-save'], true);
   setChip('warn', 'Checking…');
   try {
-    const data = await pingUrl(url);
+    const data = await pingUrl(url, getPin());
     if (data && data.ok === true && data.app === APP_PING_ID) {
       safeSetStored(url);
       showSnackbar('Backend connected');
-      showScreen('home');
+      if (data.pinRequired && data.pinOk !== true) {
+        clearPin();
+        showLockScreen();
+      } else {
+        showScreen('home');
+      }
     } else {
       setChip('err', 'Wrong backend');
       showSetupError('That URL answered, but it is not this app\'s backend. ' +
@@ -815,9 +915,13 @@ function boot() {
   }
 
   $('btn-scan').addEventListener('click', startScanner);
-  $('btn-settings').addEventListener('click', () => { clearAutoReturn(); openSetup(); });
+  $('btn-settings').addEventListener('click', () => { clearAutoReturn(); setupReturnTo = 'home'; openSetup(); });
+  $('lock-settings').addEventListener('click', () => { setupReturnTo = 'lock'; openSetup(); });
+  $('btn-unlock').addEventListener('click', unlock);
+  $('lock-pin').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') unlock(); });
   $('setup-save').addEventListener('click', testAndSave);
-  $('setup-cancel').addEventListener('click', () => showScreen('home'));
+  $('setup-url').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') testAndSave(); });
+  $('setup-cancel').addEventListener('click', () => showScreen(setupReturnTo));
   $('btn-cancel-scan').addEventListener('click', async () => { await teardownScanner(); showScreen('home'); });
   $('btn-add').addEventListener('click', () => adjustBy(1));
   $('btn-remove').addEventListener('click', () => adjustBy(-1));
@@ -833,8 +937,14 @@ function boot() {
   } else {
     showScreen('home');
     setChip('warn', 'Checking…');
-    pingUrl(url).then((data) => {
-      if (!(data && data.ok === true && data.app === APP_PING_ID)) setChip('err', 'Wrong backend');
+    pingUrl(url, getPin()).then((data) => {
+      if (!(data && data.ok === true && data.app === APP_PING_ID)) {
+        setChip('err', 'Wrong backend');
+      } else if (data.pinRequired && data.pinOk !== true) {
+        // No PIN remembered, or the shop PIN changed — ask before scanning.
+        clearPin();
+        showLockScreen();
+      }
     }).catch(() => { /* chip already set by apiFetch */ });
   }
 

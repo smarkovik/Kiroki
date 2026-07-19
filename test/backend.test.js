@@ -13,6 +13,7 @@ const {
   actionForDelta,
   buildAuditRow,
   parseBody,
+  pinCheck,
   MAX_ABS_DELTA,
   MAX_START_QTY,
 } = require('../apps-script/Code.js');
@@ -117,6 +118,17 @@ test('audit rows have the exact column order', () => {
     buildAuditRow(ts, '0421', 'Brake pad', 'remove', -1, 4),
     [ts, '0421', 'Brake pad', 'remove', -1, 4]
   );
+});
+
+test('PIN gate: disabled when unset, exact trimmed match when set', () => {
+  assert.deepEqual(pinCheck('', 'anything'), { required: false, ok: true });
+  assert.deepEqual(pinCheck(null, undefined), { required: false, ok: true });
+  assert.deepEqual(pinCheck('2468', '2468'), { required: true, ok: true });
+  assert.deepEqual(pinCheck('2468', ' 2468 '), { required: true, ok: true });
+  assert.deepEqual(pinCheck(2468, '2468'), { required: true, ok: true });
+  assert.deepEqual(pinCheck('2468', '1111'), { required: true, ok: false });
+  assert.deepEqual(pinCheck('2468', undefined), { required: true, ok: false });
+  assert.deepEqual(pinCheck('2468', ''), { required: true, ok: false });
 });
 
 test('POST body parsing accepts only a JSON object', () => {

@@ -128,6 +128,8 @@ This step gives the script a private web address the phone app will talk to.
 3. Tap **Test & save**. The app calls your script to make sure the link is
    right before saving it. If something's off, it tells you exactly what to
    fix (see [Troubleshooting](README.md#troubleshooting)).
+   *(If you turned on the shop PIN — Part 6 below — the app asks for it
+   here. Type it once; the phone remembers it.)*
 4. You land on the home screen with a big **Scan a part** button. The chip
    in the top corner should say **Connected**.
 5. Make it feel like a real app — add it to the home screen:
@@ -164,6 +166,30 @@ This step gives the script a private web address the phone app will talk to.
 If you used a throwaway test item, just delete its row on the **Inventory**
 tab (right-click the row number → *Delete row*). Leave the **Audit** tab
 alone — it's the history book.
+
+---
+
+## Part 6 — Optional: require a shop PIN (2 minutes)
+
+Skip this if only trusted phones will ever have the app. With a PIN set,
+every phone must enter it once before it can scan or change stock — and the
+check happens in your script, so it can't be bypassed.
+
+1. Open your spreadsheet on the computer, then **Extensions → Apps Script**.
+2. In the left sidebar, click the **⚙️ gear icon** (**Project Settings**).
+3. Scroll down to **Script properties** and click
+   **Add script property**.
+4. In **Property**, type exactly: `APP_PIN`
+   In **Value**, type the PIN you want, e.g. `2468`.
+5. Click **Save script properties**. Done — it works immediately, nothing
+   to redeploy.
+
+Changing the PIN later: come back here and edit the Value — every phone is
+asked for the new PIN the next time it's used. Removing the PIN: delete the
+property (🗑 icon next to it).
+
+> ✅ **Checkpoint:** opening the app on a phone that hasn't entered the PIN
+> shows a **Shop PIN** screen before any scanning is possible.
 
 ---
 
