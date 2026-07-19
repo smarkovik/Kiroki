@@ -1,0 +1,10 @@
+{
+  "name": "inventory-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Phone-based barcode inventory scanner backed by a Google Sheet",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  }
+}

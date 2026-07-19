@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inventory">
+<meta name="theme-color" content="#f2f5fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101418" media="(prefers-color-scheme: dark)">
+<title>Inventory Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Author display rules (e.g. .btn { display:flex }) would otherwise defeat
+   the hidden attribute, which the app relies on for messages and buttons. */
+[hidden] { display: none !important; }
+
+:root {
+  --bg: #f2f5fa;
+  --surface: #ffffff;
+  --surface-variant: #e6ebf2;
+  --on-surface: #191c20;
+  --muted: #48505b;
+  --outline: #c2c9d3;
+  --primary: #0b57d0;
+  --on-primary: #ffffff;
+  --add: #146c2e;
+  --on-add: #ffffff;
+  --remove: #b3261e;
+  --on-remove: #ffffff;
+  --error: #b3261e;
+  --warn-bg: #fbecad;
+  --warn-fg: #4d3b00;
+  --snack-bg: #2d3135;
+  --snack-fg: #f1f3f6;
+  --shadow: 0 1px 2px rgba(20,30,50,.10), 0 4px 14px rgba(20,30,50,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101418;
+    --surface: #1b2025;
+    --surface-variant: #272d34;
+    --on-surface: #e2e6ec;
+    --muted: #aab3bf;
+    --outline: #4e565f;
+    --primary: #8ab4f8;
+    --on-primary: #04275e;
+    --add: #81c995;
+    --on-add: #07341a;
+    --remove: #f28b82;
+    --on-remove: #4d0f0a;
+    --error: #f2b8b5;
+    --warn-bg: #4a3f12;
+    --warn-fg: #ffe08a;
+    --snack-bg: #e2e6ec;
+    --snack-fg: #1b2025;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.35);
+  }
+}
+
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--on-surface);
+  font-family: Roboto, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 88px;
+}
+
+#https-banner {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  padding: 12px 16px;
+  font-size: .9rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.appbar {
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 6px;
+}
+.appbar h1 { font-size: 1.15rem; font-weight: 500; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-variant);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: .78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--outline); }
+.chip.ok .dot { background: #1e9e4a; }
+.chip.err .dot { background: #e0453a; }
+.chip.warn .dot { background: #f0a800; }
+
+main { max-width: 480px; margin: 0 auto; padding: 10px 16px 24px; }
+
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; gap: 14px; }
+
+.card {
+  background: var(--surface);
+  border-radius: 22px;
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 72px;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1.18rem;
+  font-weight: 600;
+  color: var(--on-primary);
+  background: var(--primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter .15s, opacity .15s;
+}
+.btn:active { filter: brightness(.92); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-add { background: var(--add); color: var(--on-add); }
+.btn-remove { background: var(--remove); color: var(--on-remove); }
+.btn-tonal { background: var(--surface-variant); color: var(--on-surface); }
+.btn-text { background: transparent; color: var(--primary); min-height: 48px; font-size: 1rem; }
+
+.muted { color: var(--muted); font-size: .95rem; line-height: 1.45; }
+.center { text-align: center; }
+h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
+
+.fieldlabel { font-size: .85rem; font-weight: 500; color: var(--muted); margin-bottom: -8px; }
+.input {
+  width: 100%;
+  border: 1.5px solid var(--outline);
+  border-radius: 14px;
+  padding: 15px 14px;
+  font-family: inherit;
+  font-size: 1.05rem;
+  background: transparent;
+  color: inherit;
+  outline: none;
+}
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+
+.error-text { color: var(--error); font-size: .95rem; font-weight: 500; line-height: 1.4; }
+.notice { background: var(--surface-variant); border-radius: 12px; padding: 12px 14px; font-size: .95rem; line-height: 1.45; }
+.warning-box {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: .98rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.barcode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1rem;
+  background: var(--surface-variant);
+  border-radius: 10px;
+  padding: 8px 12px;
+  align-self: center;
+  max-width: 100%;
+  word-break: break-all;
+  text-align: center;
+}
+
+.qty { font-size: 72px; font-weight: 700; text-align: center; line-height: 1; letter-spacing: -2px; }
+.qty-label { text-align: center; margin-top: -6px; }
+
+.row { display: flex; gap: 12px; }
+.row .btn { flex: 1; font-size: 1.05rem; }
+
+#reader { width: 100%; border-radius: 14px; overflow: hidden; background: #000; min-height: 240px; }
+
+.spinner {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 4px solid var(--surface-variant);
+  border-top-color: var(--primary);
+  animation: spin .9s linear infinite;
+  align-self: center;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.center-col { align-items: center; text-align: center; }
+
+#snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 16px);
+  background: var(--snack-bg);
+  color: var(--snack-fg);
+  padding: 13px 22px;
+  border-radius: 12px;
+  font-size: .98rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+  box-shadow: var(--shadow);
+  max-width: 90vw;
+  text-align: center;
+  z-index: 50;
+}
+#snackbar.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<div id="https-banner" hidden>
+  Camera scanning needs a secure connection. Open this app at its HTTPS
+  GitHub&nbsp;Pages address — browsers block the camera on plain HTTP.
+</div>
+
+<header class="appbar">
+  <h1>Inventory Scanner</h1>
+  <div id="status-chip" class="chip"><span class="dot"></span><span id="status-text">Starting…</span></div>
+</header>
+
+<main>
+
+  <section id="screen-setup" class="screen">
+    <div class="card">
+      <h2>Connect your Google Sheet</h2>
+      <p class="muted">Paste the Web App URL from your Apps Script deployment.
+        The README has the one-time setup walkthrough.</p>
+      <label class="fieldlabel" for="setup-url">Web App URL</label>
+      <input id="setup-url" class="input" type="url" inputmode="url" autocomplete="off"
+             autocapitalize="off" spellcheck="false"
+             placeholder="https://script.google.com/macros/s/…/exec">
+      <p id="setup-error" class="error-text" hidden></p>
+      <button id="setup-save" class="btn">Test &amp; save</button>
+      <button id="setup-cancel" class="btn btn-text" hidden>Cancel</button>
+    </div>
+  </section>
+
+  <section id="screen-home" class="screen">
+    <p id="home-error" class="error-text" hidden></p>
+    <button id="btn-scan" class="btn">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h2v14H2zM6 5h1v14H6zM9 5h2v14H9zM13 5h1v14h-1zM16 5h3v14h-3zM21 5h1v14h-1z" fill="currentColor"/></svg>
+      Scan a part
+    </button>
+    <p class="muted center">Point the camera at a part's barcode or QR label
+      to add or remove stock.</p>
+    <button id="btn-settings" class="btn btn-text">Backend settings</button>
+  </section>
+
+  <section id="screen-scanner" class="screen">
+    <div class="card">
+      <div id="reader"></div>
+      <p id="scanner-hint" class="muted center">Starting camera…</p>
+      <button id="btn-cancel-scan" class="btn btn-tonal">Cancel</button>
+    </div>
+  </section>
+
+  <section id="screen-busy" class="screen">
+    <div class="card center-col">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Looking up part…</p>
+    </div>
+  </section>
+
+  <section id="screen-part" class="screen">
+    <div class="card">
+      <p id="part-barcode" class="barcode"></p>
+      <h2 id="part-name"></h2>
+      <p id="part-qty" class="qty"></p>
+      <p class="qty-label muted">in stock</p>
+      <p id="part-error" class="error-text" hidden></p>
+      <p id="part-notice" class="notice" hidden></p>
+      <div id="part-warning" class="warning-box" hidden></div>
+      <div class="row">
+        <button id="btn-remove" class="btn btn-remove">− Remove one</button>
+        <button id="btn-add" class="btn btn-add">+ Add one</button>
+      </div>
+      <button id="btn-scan-next" class="btn btn-tonal">Scan next part</button>
+      <button id="btn-done" class="btn btn-text">Done</button>
+    </div>
+  </section>
+
+  <section id="screen-unknown" class="screen">
+    <div class="card">
+      <h2>New part</h2>
+      <p class="muted center">This code isn't in the inventory yet. Add it below,
+        or cancel to scan again.</p>
+      <p id="unknown-barcode" class="barcode"></p>
+      <label class="fieldlabel" for="unknown-name">Part name</label>
+      <input id="unknown-name" class="input" type="text" autocomplete="off">
+      <label class="fieldlabel" for="unknown-qty">Starting quantity</label>
+      <input id="unknown-qty" class="input" type="number" inputmode="numeric" min="0" step="1" value="1">
+      <p id="unknown-error" class="error-text" hidden></p>
+      <button id="btn-create" class="btn btn-add">Add part</button>
+      <button id="btn-cancel-create" class="btn btn-text">Cancel — scan again</button>
+    </div>
+  </section>
+
+</main>
+
+<div id="snackbar" role="status"></div>
+
+<script>
+'use strict';
+
+/* =======================================================================
+   Backend URL — maintainers: to hardcode the backend and skip the setup
+   screen entirely, paste the Apps Script Web App URL between the quotes:
+     const API_URL = 'https://script.google.com/macros/s/AKfycb…/exec';
+   When left empty the app falls back to the URL saved on this device
+   (localStorage), and shows the setup screen if there is none.
+   ======================================================================= */
+const API_URL = '';
+
+const APP_PING_ID = 'inventory-scanner';
+const STORAGE_KEY = 'inventory-scanner-api-url';
+const REQUEST_TIMEOUT_MS = 20000;
+const AUTO_RETURN_MS = 1300;
+
+// html5-qrcode, pinned to a known-good version, primary CDN + fallback.
+const SCANNER_CDNS = [
+  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
+];
+
+const $ = (id) => document.getElementById(id);
+const SCREENS = ['setup', 'home', 'scanner', 'busy', 'part', 'unknown'];
+
+let currentPart = null;      // { barcode, name, qty }
+let unknownBarcode = null;
+let scanner = null;
+let decodeHandled = false;
+let inFlight = false;
+let autoReturnTimer = null;
+let snackbarTimer = null;
+let scannerLibPromise = null;
+
+/* ------------------------------ utilities ------------------------------ */
+
+function showScreen(name) {
+  for (const s of SCREENS) $('screen-' + s).classList.toggle('active', s === name);
+}
+
+function vibrate(ms) {
+  if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* unsupported */ } }
+}
+
+function setChip(state, text) {
+  const chip = $('status-chip');
+  chip.classList.remove('ok', 'err', 'warn');
+  if (state) chip.classList.add(state);
+  $('status-text').textContent = text;
+}
+
+function showSnackbar(text) {
+  const el = $('snackbar');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(snackbarTimer);
+  snackbarTimer = setTimeout(() => el.classList.remove('show'), AUTO_RETURN_MS);
+}
+
+function scheduleAutoReturn() {
+  clearAutoReturn();
+  autoReturnTimer = setTimeout(() => { autoReturnTimer = null; startScanner(); }, AUTO_RETURN_MS);
+}
+
+function clearAutoReturn() {
+  if (autoReturnTimer !== null) { clearTimeout(autoReturnTimer); autoReturnTimer = null; }
+}
+
+function setDisabled(ids, disabled) {
+  for (const id of ids) $(id).disabled = disabled;
+}
+
+function isLocalhost() {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+}
+
+function safeGetStored() {
+  try { return localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function safeSetStored(url) {
+  try { localStorage.setItem(STORAGE_KEY, url); } catch (e) { /* private mode */ }
+}
+
+// Resolution order: hardcoded constant → saved on device → none (setup).
+function getApiUrl() {
+  return API_URL || safeGetStored() || '';
+}
+
+/* ----------------------------- API client ------------------------------
+   Lookups are GET with query params; writes are POST with a text/plain
+   JSON body. Both qualify as CORS "simple requests" — Apps Script web
+   apps cannot answer a CORS preflight (OPTIONS). Redirects are followed
+   (Apps Script 302s to script.googleusercontent.com). */
+
+class ApiError extends Error {
+  constructor(kind, message) { super(message); this.kind = kind; }
+}
+
+async function apiFetch(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, Object.assign({ redirect: 'follow', signal: controller.signal }, options));
+  } catch (err) {
+    setChip('err', 'Not connected');
+    if (err && err.name === 'AbortError') {
+      throw new ApiError('timeout', 'The backend took too long to respond (20 s). Check the WiFi and try again.');
+    }
+    throw new ApiError('network', 'Could not reach the backend. Check the WiFi and the Web App URL under Backend settings.');
+  } finally {
+    clearTimeout(timer);
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch (err) {
+    setChip('err', 'Not connected');
+    throw new ApiError('badresponse',
+      'The backend replied with something that is not JSON — usually a Google sign-in page. ' +
+      'In Apps Script, make sure the deployment is set to "Execute as: Me" and "Who has access: Anyone".');
+  }
+  setChip('ok', 'Connected');
+  return data;
+}
+
+function requireUrl() {
+  const url = getApiUrl();
+  if (!url) {
+    openSetup();
+    throw new ApiError('config', 'No backend configured yet — add the Web App URL first.');
+  }
+  return url;
+}
+
+function apiGet(params) {
+  return apiFetch(requireUrl() + '?' + new URLSearchParams(params).toString());
+}
+
+function apiPost(body) {
+  return apiFetch(requireUrl(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+}
+
+function pingUrl(url) {
+  return apiFetch(url + '?' + new URLSearchParams({ action: 'ping' }).toString());
+}
+
+/* --------------------------- scanner library --------------------------- */
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = src;
+    el.async = true;
+    el.onload = resolve;
+    el.onerror = () => { el.remove(); reject(new Error('failed: ' + src)); };
+    document.head.appendChild(el);
+  });
+}
+
+function loadScannerLibrary() {
+  if (window.Html5Qrcode) return Promise.resolve();
+  if (scannerLibPromise) return scannerLibPromise;
+  scannerLibPromise = (async () => {
+    for (const src of SCANNER_CDNS) {
+      try {
+        await loadScript(src);
+        if (window.Html5Qrcode) return;
+      } catch (e) { /* try the next CDN */ }
+    }
+    scannerLibPromise = null; // allow a retry on the next tap
+    throw new Error('scanner library failed to load');
+  })();
+  return scannerLibPromise;
+}
+
+/* ------------------------------- scanning ------------------------------ */
+
+async function startScanner() {
+  clearAutoReturn();
+  hideHomeError();
+  showScreen('scanner');
+  $('scanner-hint').textContent = 'Starting camera…';
+
+  try {
+    await loadScannerLibrary();
+  } catch (e) {
+    showScreen('home');
+    showHomeError('The barcode scanner library failed to load from both sources. ' +
+      'Check the WiFi connection, then tap Scan again.');
+    return;
+  }
+
+  const fmts = window.Html5QrcodeSupportedFormats;
+  const formatsToSupport = [
+    fmts.UPC_A, fmts.UPC_E, fmts.EAN_13, fmts.EAN_8,
+    fmts.CODE_128, fmts.CODE_39, fmts.QR_CODE
+  ];
+
+  decodeHandled = false;
+  try {
+    scanner = new Html5Qrcode('reader', {
+      formatsToSupport: formatsToSupport,
+      verbose: false,
+      // Use the browser's native BarcodeDetector when available; the
+      // library falls back to its bundled decoder otherwise.
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
+    await scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        // Wide rectangular detection box suiting 1D barcodes.
+        qrbox: (vw, vh) => {
+          const width = Math.floor(vw * 0.9);
+          return { width: width, height: Math.min(Math.floor(width * 0.55), Math.floor(vh * 0.9)) };
+        }
+      },
+      onDecoded,
+      () => { /* per-frame decode misses are normal — ignore */ }
+    );
+    $('scanner-hint').textContent = 'Point the camera at a barcode or QR label';
+  } catch (err) {
+    await teardownScanner();
+    showScreen('home');
+    showHomeError(cameraErrorMessage(err));
+  }
+}
+
+function cameraErrorMessage(err) {
+  const s = String((err && err.name) || err || '');
+  if (!window.isSecureContext && !isLocalhost()) {
+    return 'Camera access needs the secure (HTTPS) address — open this app at its GitHub Pages URL.';
+  }
+  if (/NotAllowed|Permission|Denied/i.test(s)) {
+    return 'Camera access is blocked. Open your browser\'s settings for this site ' +
+      '(tap the padlock or ᴀA icon in the address bar), allow Camera, then tap Scan again.';
+  }
+  if (/NotFound|NotReadable|Devices/i.test(s)) {
+    return 'No usable camera was found on this device.';
+  }
+  return 'Could not start the camera: ' + s;
+}
+
+// The library can fire the success callback repeatedly per frame —
+// only the first decode of a session counts.
+async function onDecoded(text) {
+  if (decodeHandled) return;
+  decodeHandled = true;
+  vibrate(60);
+  await teardownScanner();
+  lookupBarcode(String(text).trim());
+}
+
+async function teardownScanner() {
+  const s = scanner;
+  scanner = null;
+  if (!s) return;
+  try { await s.stop(); } catch (e) { /* was not running */ }
+  try { s.clear(); } catch (e) { /* nothing to clear */ }
+}
+
+/* -------------------------------- lookup ------------------------------- */
+
+async function lookupBarcode(barcode) {
+  if (!barcode) {
+    showScreen('home');
+    showHomeError('The scanned code was empty — try again.');
+    return;
+  }
+  showScreen('busy');
+  try {
+    const data = await apiGet({ action: 'lookup', barcode: barcode });
+    if (data.ok && data.found) {
+      showPartCard({ barcode: data.barcode, name: data.name, qty: data.qty });
+    } else if (data.ok) {
+      showUnknownScreen(data.barcode || barcode);
+    } else {
+      showScreen('home');
+      showHomeError(data.message || 'The backend rejected the lookup.');
+    }
+  } catch (err) {
+    showScreen('home');
+    showHomeError(err.message);
+  }
+}
+
+/* ------------------------------ part card ------------------------------ */
+
+function showPartCard(part, notice) {
+  currentPart = part;
+  $('part-barcode').textContent = part.barcode;
+  $('part-name').textContent = part.name;
+  $('part-qty').textContent = part.qty;
+  hidePartMessages();
+  if (notice) {
+    $('part-notice').textContent = notice;
+    $('part-notice').hidden = false;
+  }
+  setDisabled(['btn-add', 'btn-remove', 'btn-scan-next'], false);
+  showScreen('part');
+}
+
+function hidePartMessages() {
+  $('part-error').hidden = true;
+  $('part-notice').hidden = true;
+  $('part-warning').hidden = true;
+}
+
+function showPartError(msg) {
+  $('part-error').textContent = msg;
+  $('part-error').hidden = false;
+}
+
+function showPartWarning(msg) {
+  $('part-warning').textContent = '⚠️ ' + msg;
+  $('part-warning').hidden = false;
+}
+
+async function adjustBy(delta) {
+  if (inFlight || !currentPart) return;
+  inFlight = true;
+  clearAutoReturn();
+  hidePartMessages();
+  setDisabled(['btn-add', 'btn-remove', 'btn-scan-next'], true);
+  try {
+    const data = await apiPost({ action: 'adjust', barcode: currentPart.barcode, delta: delta });
+    if (data.ok) {
+      currentPart.name = data.name;
+      currentPart.qty = data.qty;
+      $('part-name').textContent = data.name;
+      $('part-qty').textContent = data.qty;
+      vibrate(40);
+      showSnackbar(data.name + ': ' + data.qty + ' in stock');
+      if (data.warning === 'audit_failed') {
+        // Stay on the card so the warning is actually seen — no auto-return.
+        showPartWarning(data.message ||
+          'Stock was updated, but writing the audit log failed. Check the Audit tab in the Sheet.');
+      } else {
+        scheduleAutoReturn();
+      }
+    } else if (data.error === 'below_zero') {
+      if (typeof data.qty === 'number') {
+        currentPart.qty = data.qty;
+        $('part-qty').textContent = data.qty;
+      }
+      showPartError(data.message || 'Not enough stock to remove that many.');
+    } else if (data.error === 'unknown_barcode') {
+      // Row vanished from the Sheet mid-flow — treat as a new part.
+      showUnknownScreen(currentPart.barcode);
+    } else if (data.error === 'busy') {
+      showPartError('The backend is busy with another update — try again in a moment.');
+    } else {
+      showPartError(data.message || 'The backend rejected the update.');
+    }
+  } catch (err) {
+    showPartError(err.message);
+  } finally {
+    setDisabled(['btn-add', 'btn-remove', 'btn-scan-next'], false);
+    inFlight = false;
+  }
+}
+
+/* ------------------------------ new parts ------------------------------ */
+
+function showUnknownScreen(barcode) {
+  unknownBarcode = barcode;
+  $('unknown-barcode').textContent = barcode;
+  $('unknown-name').value = '';
+  $('unknown-qty').value = '1';
+  $('unknown-error').hidden = true;
+  setDisabled(['btn-create', 'btn-cancel-create'], false);
+  showScreen('unknown');
+}
+
+function showUnknownError(msg) {
+  $('unknown-error').textContent = msg;
+  $('unknown-error').hidden = false;
+}
+
+async function createPart() {
+  if (inFlight) return;
+  const name = $('unknown-name').value.trim();
+  const qtyRaw = $('unknown-qty').value.trim();
+  $('unknown-error').hidden = true;
+  if (!name) { showUnknownError('Enter a part name.'); return; }
+  const qty = qtyRaw === '' ? 1 : Number(qtyRaw);
+  if (!Number.isInteger(qty) || qty < 0) {
+    showUnknownError('Starting quantity must be a whole number of 0 or more.');
+    return;
+  }
+  inFlight = true;
+  setDisabled(['btn-create', 'btn-cancel-create'], true);
+  try {
+    const data = await apiPost({ action: 'create', barcode: unknownBarcode, name: name, startQty: qty });
+    if (data.ok) {
+      vibrate(40);
+      showPartCard({ barcode: data.barcode, name: data.name, qty: data.qty });
+      showSnackbar('Added ' + data.name + ' — ' + data.qty + ' in stock');
+      if (data.warning === 'audit_failed') {
+        showPartWarning(data.message ||
+          'The part was added, but writing the audit log failed. Check the Audit tab in the Sheet.');
+      } else {
+        scheduleAutoReturn();
+      }
+    } else if (data.error === 'exists') {
+      // Row appeared in the Sheet mid-flow — show the live row instead.
+      showPartCard({ barcode: unknownBarcode, name: data.name, qty: data.qty },
+        'This part was already in the inventory — showing its current stock.');
+    } else {
+      showUnknownError(data.message || 'The backend rejected the new part.');
+    }
+  } catch (err) {
+    showUnknownError(err.message);
+  } finally {
+    setDisabled(['btn-create', 'btn-cancel-create'], false);
+    inFlight = false;
+  }
+}
+
+/* --------------------------------- home -------------------------------- */
+
+function showHomeError(msg) {
+  $('home-error').textContent = msg;
+  $('home-error').hidden = false;
+}
+
+function hideHomeError() {
+  $('home-error').hidden = true;
+}
+
+/* -------------------------------- setup -------------------------------- */
+
+function openSetup() {
+  $('setup-url').value = getApiUrl();
+  $('setup-error').hidden = true;
+  // Cancellable only when a backend is already configured (not first run).
+  $('setup-cancel').hidden = !getApiUrl();
+  showScreen('setup');
+}
+
+function showSetupError(msg) {
+  $('setup-error').textContent = msg;
+  $('setup-error').hidden = false;
+}
+
+async function testAndSave() {
+  if (inFlight) return;
+  const url = $('setup-url').value.trim();
+  $('setup-error').hidden = true;
+  if (!/^https:\/\/script\.google\.com\/.+/i.test(url)) {
+    showSetupError('That does not look like an Apps Script Web App URL — it should start with https://script.google.com/…');
+    return;
+  }
+  inFlight = true;
+  setDisabled(['setup-save'], true);
+  setChip('warn', 'Checking…');
+  try {
+    const data = await pingUrl(url);
+    if (data && data.ok === true && data.app === APP_PING_ID) {
+      safeSetStored(url);
+      showSnackbar('Backend connected');
+      showScreen('home');
+    } else {
+      setChip('err', 'Wrong backend');
+      showSetupError('That URL answered, but it is not this app\'s backend. ' +
+        'Double-check you copied the Web App URL of the Inventory Scanner script.');
+    }
+  } catch (err) {
+    showSetupError(err.message);
+  } finally {
+    setDisabled(['setup-save'], false);
+    inFlight = false;
+  }
+}
+
+/* --------------------------------- boot -------------------------------- */
+
+function boot() {
+  if (!window.isSecureContext && !isLocalhost()) {
+    $('https-banner').hidden = false;
+  }
+
+  $('btn-scan').addEventListener('click', startScanner);
+  $('btn-settings').addEventListener('click', () => { clearAutoReturn(); openSetup(); });
+  $('setup-save').addEventListener('click', testAndSave);
+  $('setup-cancel').addEventListener('click', () => showScreen('home'));
+  $('btn-cancel-scan').addEventListener('click', async () => { await teardownScanner(); showScreen('home'); });
+  $('btn-add').addEventListener('click', () => adjustBy(1));
+  $('btn-remove').addEventListener('click', () => adjustBy(-1));
+  $('btn-scan-next').addEventListener('click', () => startScanner());
+  $('btn-done').addEventListener('click', () => { clearAutoReturn(); showScreen('home'); });
+  $('btn-create').addEventListener('click', createPart);
+  $('btn-cancel-create').addEventListener('click', () => startScanner());
+
+  const url = getApiUrl();
+  if (!url) {
+    setChip('warn', 'Setup needed');
+    openSetup();
+  } else {
+    showScreen('home');
+    setChip('warn', 'Checking…');
+    pingUrl(url).then((data) => {
+      if (!(data && data.ok === true && data.app === APP_PING_ID)) setChip('err', 'Wrong backend');
+    }).catch(() => { /* chip already set by apiFetch */ });
+  }
+
+  // Warm the scanner library in the background; failures surface on Scan.
+  loadScannerLibrary().catch(() => {});
+}
+
+// Test hook: lets a headless browser drive the app with a stubbed fetch.
+window.__inventoryScanner = { showScreen: showScreen, lookupBarcode: lookupBarcode };
+
+boot();
+</script>
+</body>
+</html>
