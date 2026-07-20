@@ -50,7 +50,7 @@ is the Web App URL you give it during setup.
 
 ### Part 2 — The phone app
 
-1. On your phone, open **`https://smarkovik.github.io/inventory-manager/`**.
+1. On your phone, open **`https://smarkovik.github.io/kiroki/`**.
    (It must be this `https://` address — browsers only allow camera access on
    secure pages.)
 2. Paste the Web app URL into the setup screen and tap **Test & save**. The
@@ -151,7 +151,7 @@ Google account.
 | `index.html` | Entire frontend: single file, no build step, hand-rolled Material Design 3 CSS, light/dark. |
 | `apps-script/Code.js` | Entire backend. The same file runs in Apps Script and under Node — pure logic is exported behind a `typeof module` guard. |
 | `test/backend.test.js` | Unit tests for the pure backend logic. Zero dependencies. |
-| `.github/workflows/pages.yml` | Runs the tests on Node 22, then deploys the repo root to GitHub Pages (Pages is enabled automatically by the workflow). |
+| `.github/workflows/pages.yml` | Runs the tests on Node 22, then deploys the repo root to GitHub Pages. One-time setup: in the repo's **Settings → Pages**, set **Source: GitHub Actions** before the first deploy — the workflow's own token isn't allowed to switch Pages on. |
 
 Run the tests with Node 18+:
 

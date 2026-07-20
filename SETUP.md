@@ -40,7 +40,7 @@ The script is a small program that lives *inside* your Sheet and does the
 reading and writing for the phone app.
 
 1. First, copy the script code. Open this link:
-   **[apps-script/Code.js](https://github.com/smarkovik/inventory-manager/blob/main/apps-script/Code.js)**
+   **[apps-script/Code.js](https://github.com/smarkovik/kiroki/blob/main/apps-script/Code.js)**
 2. On that page, click the **copy button** (two overlapping squares 📋, top
    right of the code area). The whole file is now on your clipboard.
 3. Go back to your spreadsheet. In the menu bar at the top, click
@@ -119,7 +119,7 @@ This step gives the script a private web address the phone app will talk to.
 1. On the phone, open the browser (Safari on iPhone, Chrome on Android) and
    go to:
 
-   **`https://smarkovik.github.io/inventory-manager/`**
+   **`https://smarkovik.github.io/kiroki/`**
 
    It must be this address — the camera only works on a secure (`https`)
    page.
