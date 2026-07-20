@@ -86,7 +86,7 @@ This step gives the script a private web address the phone app will talk to.
    ⚠️ These two settings matter. *Execute as: Me* means the script uses
    **your** permission to edit **your** sheet. *Who has access: Anyone*
    means the phone app can call it without logging in. Nobody can see or
-   edit your spreadsheet through it — the script only answers three narrow
+   edit your spreadsheet through it — the script only answers a few narrow
    questions about parts and stock.
 
 4. Click **Deploy**.

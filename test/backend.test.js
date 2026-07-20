@@ -12,6 +12,7 @@ const {
   applyDelta,
   actionForDelta,
   buildAuditRow,
+  buildInventoryList,
   parseBody,
   parseUserRows,
   authenticatePin,
@@ -154,6 +155,21 @@ test('per-user PIN auth: disabled with no users, unique match required', () => {
     [{ name: 'A', pin: '1111' }, { name: 'B', pin: '1111' }], '1111');
   assert.equal(dup.ok, false);
   assert.match(dup.message, /more than one user/);
+});
+
+test('inventory list: blank-barcode rows skipped, sorted by name, values coerced', () => {
+  const items = buildInventoryList([
+    ['B2', 'washer', ''],
+    ['', 'ghost row', 5],
+    ['042', 'Brake pad', '7.9'],
+    [12345, 'oil Filter', 3],
+  ]);
+  assert.deepEqual(items, [
+    { barcode: '042', name: 'Brake pad', qty: 7 },
+    { barcode: '12345', name: 'oil Filter', qty: 3 },
+    { barcode: 'B2', name: 'washer', qty: 0 },
+  ]);
+  assert.deepEqual(buildInventoryList([]), []);
 });
 
 test('POST body parsing accepts only a JSON object', () => {
