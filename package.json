@@ -1,5 +1,5 @@
 {
-  "name": "inventory-manager",
+  "name": "kiroki",
   "version": "1.0.0",
   "private": true,
   "description": "Phone-based barcode inventory scanner backed by a Google Sheet",
