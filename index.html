@@ -114,6 +114,16 @@ body {
 }
 .logo::after { content: '.'; color: var(--add); }
 
+.appbar-right { display: flex; align-items: center; gap: 8px; }
+button.chip.lang-btn {
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--outline); }
 .chip.ok .dot { background: #1e9e4a; }
 .chip.err .dot { background: #e0453a; }
@@ -201,7 +211,15 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
   text-align: center;
 }
 
-.inv-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+/* The list runs full length — the page itself scrolls, no inner scrollbox
+   (nested scroll areas are invisible and easy to miss on phones). */
+.inv-list { display: flex; flex-direction: column; gap: 8px; }
+#inv-filter {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  background: var(--surface);
+}
 .inv-row {
   display: flex;
   align-items: center;
@@ -282,46 +300,49 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
 </head>
 <body>
 
-<div id="https-banner" hidden>
+<div id="https-banner" hidden data-i18n="banner.https">
   Camera scanning needs a secure connection. Open this app at its HTTPS
   GitHub&nbsp;Pages address — browsers block the camera on plain HTTP.
 </div>
 
 <header class="appbar">
   <h1>Kiroki</h1>
-  <div id="status-chip" class="chip"><span class="dot"></span><span id="status-text">Starting…</span></div>
+  <div class="appbar-right">
+    <button id="lang-toggle" class="chip lang-btn" type="button" aria-label="Language"><span id="lang-label">EN</span></button>
+    <div id="status-chip" class="chip"><span class="dot"></span><span id="status-text">Starting…</span></div>
+  </div>
 </header>
 
 <main>
 
   <section id="screen-setup" class="screen">
     <div class="card">
-      <h2>Connect your Google Sheet</h2>
-      <p class="muted">Paste the Web App URL from your Apps Script deployment.
+      <h2 data-i18n="setup.title">Connect your Google Sheet</h2>
+      <p class="muted" data-i18n="setup.intro">Paste the Web App URL from your Apps Script deployment.
         The README has the one-time setup walkthrough.</p>
-      <label class="fieldlabel" for="setup-url">Web App URL</label>
+      <label class="fieldlabel" for="setup-url" data-i18n="setup.urlLabel">Web App URL</label>
       <input id="setup-url" class="input" type="url" inputmode="url" autocomplete="off"
              autocapitalize="off" spellcheck="false"
              placeholder="https://script.google.com/macros/s/…/exec">
       <p id="setup-error" class="error-text" hidden></p>
-      <button id="setup-save" class="btn">Test &amp; save</button>
-      <button id="setup-cancel" class="btn btn-text" hidden>Cancel</button>
+      <button id="setup-save" class="btn" data-i18n="setup.save">Test &amp; save</button>
+      <button id="setup-cancel" class="btn btn-text" hidden data-i18n="common.cancel">Cancel</button>
     </div>
   </section>
 
   <section id="screen-lock" class="screen">
     <div class="card">
       <div class="logo">Kiroki</div>
-      <h2>Sign in</h2>
-      <p class="muted center">Enter your PIN from the shop's user list.
+      <h2 data-i18n="lock.title">Sign in</h2>
+      <p class="muted center" data-i18n="lock.intro">Enter your PIN from the shop's user list.
         You only do this once — this phone will remember you.</p>
-      <label class="fieldlabel" for="lock-pin">Your PIN</label>
+      <label class="fieldlabel" for="lock-pin" data-i18n="lock.pinLabel">Your PIN</label>
       <input id="lock-pin" class="input" type="password" autocomplete="off"
              autocapitalize="off" spellcheck="false"
              inputmode="numeric" pattern="[0-9]*">
       <p id="lock-error" class="error-text" hidden></p>
-      <button id="btn-unlock" class="btn">Sign in</button>
-      <button id="lock-settings" class="btn btn-text">Backend settings</button>
+      <button id="btn-unlock" class="btn" data-i18n="lock.signIn">Sign in</button>
+      <button id="lock-settings" class="btn btn-text" data-i18n="common.backendSettings">Backend settings</button>
     </div>
   </section>
 
@@ -329,44 +350,44 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
     <p id="home-error" class="error-text" hidden></p>
     <button id="btn-scan" class="btn">
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h2v14H2zM6 5h1v14H6zM9 5h2v14H9zM13 5h1v14h-1zM16 5h3v14h-3zM21 5h1v14h-1z" fill="currentColor"/></svg>
-      Scan a part
+      <span data-i18n="home.scan">Scan a part</span>
     </button>
-    <p class="muted center">Point the camera at a part's barcode or QR label
+    <p class="muted center" data-i18n="home.hint">Point the camera at a part's barcode or QR label
       to add or remove stock.</p>
     <button id="btn-inventory" class="btn btn-tonal">
       <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h2v2H4zM8 6h12v2H8zM4 11h2v2H4zM8 11h12v2H8zM4 16h2v2H4zM8 16h12v2H8z" fill="currentColor"/></svg>
-      View inventory
+      <span data-i18n="home.viewInventory">View inventory</span>
     </button>
     <p id="home-user" class="muted center" hidden></p>
-    <button id="btn-switch" class="btn btn-text" hidden>Switch user</button>
-    <button id="btn-settings" class="btn btn-text">Backend settings</button>
+    <button id="btn-switch" class="btn btn-text" hidden data-i18n="home.switchUser">Switch user</button>
+    <button id="btn-settings" class="btn btn-text" data-i18n="common.backendSettings">Backend settings</button>
   </section>
 
   <section id="screen-scanner" class="screen">
     <div class="card">
       <div id="reader"></div>
-      <p id="scanner-hint" class="muted center">Starting camera…</p>
-      <button id="btn-cancel-scan" class="btn btn-tonal">Cancel</button>
+      <p id="scanner-hint" class="muted center" data-i18n="scanner.starting">Starting camera…</p>
+      <button id="btn-cancel-scan" class="btn btn-tonal" data-i18n="common.cancel">Cancel</button>
     </div>
   </section>
 
   <section id="screen-inventory" class="screen">
     <div class="card">
-      <h2>Inventory</h2>
+      <h2 data-i18n="inv.title">Inventory</h2>
       <p id="inv-status" class="muted center"></p>
       <input id="inv-filter" class="input" type="search" autocomplete="off"
-             placeholder="Filter by name or code…">
+             placeholder="Filter by name or code…" data-i18n-placeholder="inv.filterPlaceholder">
       <p id="inv-error" class="error-text" hidden></p>
       <div id="inv-list" class="inv-list"></div>
-      <button id="btn-inv-refresh" class="btn btn-tonal">Refresh</button>
-      <button id="btn-inv-back" class="btn btn-text">Back</button>
+      <button id="btn-inv-refresh" class="btn btn-tonal" data-i18n="inv.refresh">Refresh</button>
+      <button id="btn-inv-back" class="btn btn-text" data-i18n="inv.back">Back</button>
     </div>
   </section>
 
   <section id="screen-busy" class="screen">
     <div class="card center-col">
       <div class="spinner" aria-hidden="true"></div>
-      <p>Looking up part…</p>
+      <p data-i18n="busy.lookingUp">Looking up part…</p>
     </div>
   </section>
 
@@ -375,38 +396,208 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
       <p id="part-barcode" class="barcode"></p>
       <h2 id="part-name"></h2>
       <p id="part-qty" class="qty"></p>
-      <p class="qty-label muted">in stock</p>
+      <p class="qty-label muted" data-i18n="part.inStock">in stock</p>
       <p id="part-error" class="error-text" hidden></p>
       <p id="part-notice" class="notice" hidden></p>
       <div id="part-warning" class="warning-box" hidden></div>
       <div class="row">
-        <button id="btn-remove" class="btn btn-remove">− Remove one</button>
-        <button id="btn-add" class="btn btn-add">+ Add one</button>
+        <button id="btn-remove" class="btn btn-remove" data-i18n="part.removeOne">− Remove one</button>
+        <button id="btn-add" class="btn btn-add" data-i18n="part.addOne">+ Add one</button>
       </div>
-      <button id="btn-scan-next" class="btn btn-tonal">Scan next part</button>
-      <button id="btn-done" class="btn btn-text">Done</button>
+      <button id="btn-scan-next" class="btn btn-tonal" data-i18n="part.scanNext">Scan next part</button>
+      <button id="btn-done" class="btn btn-text" data-i18n="part.done">Done</button>
     </div>
   </section>
 
   <section id="screen-unknown" class="screen">
     <div class="card">
-      <h2>New part</h2>
-      <p class="muted center">This code isn't in the inventory yet. Add it below,
+      <h2 data-i18n="unknown.title">New part</h2>
+      <p class="muted center" data-i18n="unknown.intro">This code isn't in the inventory yet. Add it below,
         or cancel to scan again.</p>
       <p id="unknown-barcode" class="barcode"></p>
-      <label class="fieldlabel" for="unknown-name">Part name</label>
+      <label class="fieldlabel" for="unknown-name" data-i18n="unknown.nameLabel">Part name</label>
       <input id="unknown-name" class="input" type="text" autocomplete="off">
-      <label class="fieldlabel" for="unknown-qty">Starting quantity</label>
+      <label class="fieldlabel" for="unknown-qty" data-i18n="unknown.qtyLabel">Starting quantity</label>
       <input id="unknown-qty" class="input" type="number" inputmode="numeric" min="0" step="1" value="1">
       <p id="unknown-error" class="error-text" hidden></p>
-      <button id="btn-create" class="btn btn-add">Add part</button>
-      <button id="btn-cancel-create" class="btn btn-text">Cancel — scan again</button>
+      <button id="btn-create" class="btn btn-add" data-i18n="unknown.add">Add part</button>
+      <button id="btn-cancel-create" class="btn btn-text" data-i18n="unknown.cancelScan">Cancel — scan again</button>
     </div>
   </section>
 
 </main>
 
 <div id="snackbar" role="status"></div>
+
+<!-- Localisation dictionary. To adjust a translation, edit the text here;
+     to add a language, copy a block, translate it, and extend detectLang()
+     in the script below. -->
+<script type="application/json" id="i18n-data">
+{
+  "en": {
+    "banner.https": "Camera scanning needs a secure connection. Open this app at its HTTPS GitHub Pages address — browsers block the camera on plain HTTP.",
+    "chip.starting": "Starting…",
+    "chip.checking": "Checking…",
+    "chip.connected": "Connected",
+    "chip.notConnected": "Not connected",
+    "chip.wrongBackend": "Wrong backend",
+    "chip.setupNeeded": "Setup needed",
+    "chip.pinNeeded": "PIN needed",
+    "setup.title": "Connect your Google Sheet",
+    "setup.intro": "Paste the Web App URL from your Apps Script deployment. The README has the one-time setup walkthrough.",
+    "setup.urlLabel": "Web App URL",
+    "setup.save": "Test & save",
+    "setup.connected": "Backend connected",
+    "setup.errBadShape": "That does not look like an Apps Script Web App URL — it should start with https://script.google.com/…",
+    "setup.errWrongApp": "That URL answered, but it is not this app's backend. Double-check you copied the Web App URL of the Kiroki script.",
+    "common.cancel": "Cancel",
+    "common.backendSettings": "Backend settings",
+    "lock.title": "Sign in",
+    "lock.intro": "Enter your PIN from the shop's user list. You only do this once — this phone will remember you.",
+    "lock.pinLabel": "Your PIN",
+    "lock.signIn": "Sign in",
+    "lock.promptDefault": "Enter your PIN.",
+    "lock.pinChanged": "Your PIN is no longer accepted — enter the current one.",
+    "lock.errEnterPin": "Enter the PIN.",
+    "lock.errWrongPin": "Wrong PIN — try again.",
+    "lock.errNotThisApp": "That URL is not this app's backend — check Backend settings.",
+    "auth.signedInAs": "Signed in as {name}",
+    "auth.signedIn": "Signed in",
+    "home.scan": "Scan a part",
+    "home.hint": "Point the camera at a part's barcode or QR label to add or remove stock.",
+    "home.viewInventory": "View inventory",
+    "home.switchUser": "Switch user",
+    "home.errEmptyScan": "The scanned code was empty — try again.",
+    "scanner.starting": "Starting camera…",
+    "scanner.point": "Point the camera at a barcode or QR label",
+    "scanner.libFailed": "The barcode scanner library failed to load from both sources. Check the WiFi connection, then tap Scan again.",
+    "camera.https": "Camera access needs the secure (HTTPS) address — open this app at its GitHub Pages URL.",
+    "camera.blocked": "Camera access is blocked. Open your browser's settings for this site (tap the padlock or ᴀA icon in the address bar), allow Camera, then tap Scan again.",
+    "camera.none": "No usable camera was found on this device.",
+    "camera.failed": "Could not start the camera: {reason}",
+    "busy.lookingUp": "Looking up part…",
+    "lookup.rejected": "The backend rejected the lookup.",
+    "part.inStock": "in stock",
+    "part.removeOne": "− Remove one",
+    "part.addOne": "+ Add one",
+    "part.scanNext": "Scan next part",
+    "part.done": "Done",
+    "part.stockSnack": "{name}: {qty} in stock",
+    "part.belowZero": "Only {qty} in stock — cannot remove {n}.",
+    "part.notEnough": "Not enough stock to remove that many.",
+    "part.busyBackend": "The backend is busy with another update — try again in a moment.",
+    "part.rejected": "The backend rejected the update.",
+    "part.auditWarnAdjust": "Stock was updated, but writing the audit log failed. Check the Audit tab in the Sheet.",
+    "part.auditWarnCreate": "The part was added, but writing the audit log failed. Check the Audit tab in the Sheet.",
+    "unknown.title": "New part",
+    "unknown.intro": "This code isn't in the inventory yet. Add it below, or cancel to scan again.",
+    "unknown.nameLabel": "Part name",
+    "unknown.qtyLabel": "Starting quantity",
+    "unknown.add": "Add part",
+    "unknown.cancelScan": "Cancel — scan again",
+    "unknown.errName": "Enter a part name.",
+    "unknown.errQty": "Starting quantity must be a whole number of 0 or more.",
+    "unknown.rejected": "The backend rejected the new part.",
+    "unknown.addedSnack": "Added {name} — {qty} in stock",
+    "unknown.existsNotice": "This part was already in the inventory — showing its current stock.",
+    "inv.title": "Inventory",
+    "inv.filterPlaceholder": "Filter by name or code…",
+    "inv.refresh": "Refresh",
+    "inv.back": "Back",
+    "inv.loading": "Loading…",
+    "inv.empty": "No parts yet — scan something to add the first one.",
+    "inv.count": "{n} parts",
+    "inv.countFiltered": "{shown} of {total} parts",
+    "inv.rejected": "The backend rejected the request.",
+    "net.timeout": "The backend took too long to respond (20 s). Check the WiFi and try again.",
+    "net.unreachable": "Could not reach the backend. Check the WiFi and the Web App URL under Backend settings.",
+    "net.badResponse": "The backend replied with something that is not JSON — usually a Google sign-in page. In Apps Script, make sure the deployment is set to \"Execute as: Me\" and \"Who has access: Anyone\".",
+    "net.noBackend": "No backend configured yet — add the Web App URL first.",
+    "lang.switched": "Language: English"
+  },
+  "mk": {
+    "banner.https": "За скенирање со камера е потребна безбедна врска. Отворете ја апликацијата на нејзината HTTPS GitHub Pages адреса — прелистувачите ја блокираат камерата на обичен HTTP.",
+    "chip.starting": "Стартува…",
+    "chip.checking": "Проверка…",
+    "chip.connected": "Поврзано",
+    "chip.notConnected": "Нема врска",
+    "chip.wrongBackend": "Погрешен сервер",
+    "chip.setupNeeded": "Треба поставување",
+    "chip.pinNeeded": "Потребен ПИН",
+    "setup.title": "Поврзете го вашиот Google Sheet",
+    "setup.intro": "Залепете ја Web App URL адресата од вашиот Apps Script. Упатството за еднократно поставување е во README.",
+    "setup.urlLabel": "Web App URL",
+    "setup.save": "Тестирај и зачувај",
+    "setup.connected": "Поврзано со серверот",
+    "setup.errBadShape": "Ова не изгледа како Apps Script Web App URL — треба да почнува со https://script.google.com/…",
+    "setup.errWrongApp": "Адресата одговори, но не е серверот на оваа апликација. Проверете дали ја копиравте Web App URL адресата на Kiroki скриптата.",
+    "common.cancel": "Откажи",
+    "common.backendSettings": "Поставки за серверот",
+    "lock.title": "Најава",
+    "lock.intro": "Внесете го вашиот ПИН од листата на корисници. Ова се прави само еднаш — телефонот ќе ве запомни.",
+    "lock.pinLabel": "Вашиот ПИН",
+    "lock.signIn": "Најави се",
+    "lock.promptDefault": "Внесете го вашиот ПИН.",
+    "lock.pinChanged": "Вашиот ПИН веќе не важи — внесете го новиот.",
+    "lock.errEnterPin": "Внесете го ПИН-от.",
+    "lock.errWrongPin": "Погрешен ПИН — обидете се повторно.",
+    "lock.errNotThisApp": "Оваа адреса не е серверот на апликацијата — проверете во Поставки за серверот.",
+    "auth.signedInAs": "Најавени сте како {name}",
+    "auth.signedIn": "Најавени сте",
+    "home.scan": "Скенирај дел",
+    "home.hint": "Насочете ја камерата кон баркодот или QR етикетата на делот за да додадете или извадите залиха.",
+    "home.viewInventory": "Преглед на залиха",
+    "home.switchUser": "Смени корисник",
+    "home.errEmptyScan": "Скенираниот код беше празен — обидете се повторно.",
+    "scanner.starting": "Камерата се вклучува…",
+    "scanner.point": "Насочете ја камерата кон баркод или QR етикета",
+    "scanner.libFailed": "Библиотеката за скенирање не се вчита од ниту еден извор. Проверете го WiFi-то и допрете Скенирај повторно.",
+    "camera.https": "За камерата е потребна безбедна (HTTPS) адреса — отворете ја апликацијата на нејзината GitHub Pages адреса.",
+    "camera.blocked": "Пристапот до камерата е блокиран. Отворете ги поставките на прелистувачот за оваа страница (допрете го катанчето или ᴀA во адресната лента), дозволете Камера, па допрете Скенирај повторно.",
+    "camera.none": "Не е пронајдена камера на овој уред.",
+    "camera.failed": "Камерата не можеше да се вклучи: {reason}",
+    "busy.lookingUp": "Пребарување на делот…",
+    "lookup.rejected": "Серверот го одби пребарувањето.",
+    "part.inStock": "на залиха",
+    "part.removeOne": "− Извади еден",
+    "part.addOne": "+ Додади еден",
+    "part.scanNext": "Скенирај следен дел",
+    "part.done": "Готово",
+    "part.stockSnack": "{name}: {qty} на залиха",
+    "part.belowZero": "Само {qty} на залиха — не може да се извадат {n}.",
+    "part.notEnough": "Нема доволно залиха за да се извади толку.",
+    "part.busyBackend": "Серверот е зафатен со друга промена — обидете се повторно за момент.",
+    "part.rejected": "Серверот ја одби промената.",
+    "part.auditWarnAdjust": "Залихата е променета, но записот во Audit табот не успеа. Проверете го Audit табот во табелата.",
+    "part.auditWarnCreate": "Делот е додаден, но записот во Audit табот не успеа. Проверете го Audit табот во табелата.",
+    "unknown.title": "Нов дел",
+    "unknown.intro": "Овој код сè уште не е во залихата. Додајте го подолу или откажете за да скенирате повторно.",
+    "unknown.nameLabel": "Име на делот",
+    "unknown.qtyLabel": "Почетна количина",
+    "unknown.add": "Додади дел",
+    "unknown.cancelScan": "Откажи — скенирај повторно",
+    "unknown.errName": "Внесете име на делот.",
+    "unknown.errQty": "Почетната количина мора да биде цел број, 0 или повеќе.",
+    "unknown.rejected": "Серверот го одби новиот дел.",
+    "unknown.addedSnack": "Додадено: {name} — {qty} на залиха",
+    "unknown.existsNotice": "Овој дел веќе постои во залихата — прикажана е моменталната состојба.",
+    "inv.title": "Залиха",
+    "inv.filterPlaceholder": "Филтрирај по име или код…",
+    "inv.refresh": "Освежи",
+    "inv.back": "Назад",
+    "inv.loading": "Се вчитува…",
+    "inv.empty": "Сè уште нема делови — скенирајте нешто за да го додадете првиот.",
+    "inv.count": "{n} делови",
+    "inv.countFiltered": "{shown} од {total} делови",
+    "inv.rejected": "Серверот го одби барањето.",
+    "net.timeout": "Серверот не одговори навреме (20 с). Проверете го WiFi-то и обидете се повторно.",
+    "net.unreachable": "Не може да се воспостави врска со серверот. Проверете го WiFi-то и Web App URL адресата во Поставки за серверот.",
+    "net.badResponse": "Серверот одговори со нешто што не е JSON — обично Google страница за најава. Во Apps Script, проверете дека deployment-от е поставен на \"Execute as: Me\" и \"Who has access: Anyone\".",
+    "net.noBackend": "Серверот сè уште не е поставен — прво додајте ја Web App URL адресата.",
+    "lang.switched": "Јазик: македонски"
+  }
+}
+</script>
 
 <script>
 'use strict';
@@ -436,6 +627,60 @@ const SCANNER_CDNS = [
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['setup', 'lock', 'home', 'scanner', 'inventory', 'busy', 'part', 'unknown'];
 
+/* ------------------------------ languages ------------------------------
+   Translations live in the JSON block at the bottom of this file.
+   Preference is stored on the device; the default follows the browser
+   language (Macedonian browsers get Macedonian, everyone else English). */
+
+const LANG_STORAGE_KEY = 'inventory-scanner-lang';
+const I18N = JSON.parse(document.getElementById('i18n-data').textContent);
+
+function detectLang() {
+  try {
+    const saved = localStorage.getItem(LANG_STORAGE_KEY);
+    if (saved === 'en' || saved === 'mk') return saved;
+  } catch (e) { /* private mode */ }
+  const langs = navigator.languages || [navigator.language || 'en'];
+  for (const l of langs) {
+    if (String(l).toLowerCase().indexOf('mk') === 0) return 'mk';
+  }
+  return 'en';
+}
+
+let currentLang = detectLang();
+
+function t(key, params) {
+  const dict = I18N[currentLang] || I18N.en;
+  let s = dict[key] !== undefined ? dict[key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
+  if (params) {
+    for (const k in params) s = s.split('{' + k + '}').join(params[k]);
+  }
+  return s;
+}
+
+let lastChip = null;
+
+function applyI18n() {
+  document.documentElement.lang = currentLang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+  $('lang-label').textContent = currentLang === 'mk' ? 'МК' : 'EN';
+  if (lastChip) setChip(lastChip.state, lastChip.key);
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'mk' ? 'en' : 'mk';
+  try { localStorage.setItem(LANG_STORAGE_KEY, currentLang); } catch (e) { /* private mode */ }
+  applyI18n();
+  updateSignedIn();
+  if (screenActive('inventory')) renderInventory();
+  showSnackbar(t('lang.switched'));
+}
+
 let currentPart = null;      // { barcode, name, qty }
 let unknownBarcode = null;
 let scanner = null;
@@ -460,11 +705,12 @@ function vibrate(ms) {
   if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* unsupported */ } }
 }
 
-function setChip(state, text) {
+function setChip(state, key) {
+  lastChip = { state: state, key: key };
   const chip = $('status-chip');
   chip.classList.remove('ok', 'err', 'warn');
   if (state) chip.classList.add(state);
-  $('status-text').textContent = text;
+  $('status-text').textContent = t(key);
 }
 
 function showSnackbar(text) {
@@ -536,7 +782,7 @@ function signOut() {
 
 function updateSignedIn() {
   const name = getUserName();
-  $('home-user').textContent = name ? 'Signed in as ' + name : '';
+  $('home-user').textContent = name ? t('auth.signedInAs', { name: name }) : '';
   $('home-user').hidden = !name;
   $('btn-switch').hidden = !name;
 }
@@ -565,11 +811,11 @@ async function apiFetch(url, options = {}) {
   try {
     response = await fetch(url, Object.assign({ redirect: 'follow', signal: controller.signal }, options));
   } catch (err) {
-    setChip('err', 'Not connected');
+    setChip('err', 'chip.notConnected');
     if (err && err.name === 'AbortError') {
-      throw new ApiError('timeout', 'The backend took too long to respond (20 s). Check the WiFi and try again.');
+      throw new ApiError('timeout', t('net.timeout'));
     }
-    throw new ApiError('network', 'Could not reach the backend. Check the WiFi and the Web App URL under Backend settings.');
+    throw new ApiError('network', t('net.unreachable'));
   } finally {
     clearTimeout(timer);
   }
@@ -577,12 +823,10 @@ async function apiFetch(url, options = {}) {
   try {
     data = await response.json();
   } catch (err) {
-    setChip('err', 'Not connected');
-    throw new ApiError('badresponse',
-      'The backend replied with something that is not JSON — usually a Google sign-in page. ' +
-      'In Apps Script, make sure the deployment is set to "Execute as: Me" and "Who has access: Anyone".');
+    setChip('err', 'chip.notConnected');
+    throw new ApiError('badresponse', t('net.badResponse'));
   }
-  setChip('ok', 'Connected');
+  setChip('ok', 'chip.connected');
   return data;
 }
 
@@ -590,7 +834,7 @@ function requireUrl() {
   const url = getApiUrl();
   if (!url) {
     openSetup();
-    throw new ApiError('config', 'No backend configured yet — add the Web App URL first.');
+    throw new ApiError('config', t('net.noBackend'));
   }
   return url;
 }
@@ -648,14 +892,13 @@ async function startScanner() {
   clearAutoReturn();
   hideHomeError();
   showScreen('scanner');
-  $('scanner-hint').textContent = 'Starting camera…';
+  $('scanner-hint').textContent = t('scanner.starting');
 
   try {
     await loadScannerLibrary();
   } catch (e) {
     showScreen('home');
-    showHomeError('The barcode scanner library failed to load from both sources. ' +
-      'Check the WiFi connection, then tap Scan again.');
+    showHomeError(t('scanner.libFailed'));
     return;
   }
 
@@ -687,7 +930,7 @@ async function startScanner() {
       onDecoded,
       () => { /* per-frame decode misses are normal — ignore */ }
     );
-    $('scanner-hint').textContent = 'Point the camera at a barcode or QR label';
+    $('scanner-hint').textContent = t('scanner.point');
   } catch (err) {
     await teardownScanner();
     showScreen('home');
@@ -698,16 +941,15 @@ async function startScanner() {
 function cameraErrorMessage(err) {
   const s = String((err && err.name) || err || '');
   if (!window.isSecureContext && !isLocalhost()) {
-    return 'Camera access needs the secure (HTTPS) address — open this app at its GitHub Pages URL.';
+    return t('camera.https');
   }
   if (/NotAllowed|Permission|Denied/i.test(s)) {
-    return 'Camera access is blocked. Open your browser\'s settings for this site ' +
-      '(tap the padlock or ᴀA icon in the address bar), allow Camera, then tap Scan again.';
+    return t('camera.blocked');
   }
   if (/NotFound|NotReadable|Devices/i.test(s)) {
-    return 'No usable camera was found on this device.';
+    return t('camera.none');
   }
-  return 'Could not start the camera: ' + s;
+  return t('camera.failed', { reason: s });
 }
 
 // The library can fire the success callback repeatedly per frame —
@@ -733,7 +975,7 @@ async function teardownScanner() {
 async function lookupBarcode(barcode) {
   if (!barcode) {
     showScreen('home');
-    showHomeError('The scanned code was empty — try again.');
+    showHomeError(t('home.errEmptyScan'));
     return;
   }
   showScreen('busy');
@@ -745,10 +987,10 @@ async function lookupBarcode(barcode) {
       showUnknownScreen(data.barcode || barcode);
     } else if (data.error === 'unauthorized') {
       signOut();
-      showLockScreen(data.message || 'Enter your PIN.');
+      showLockScreen(t('lock.promptDefault'));
     } else {
       showScreen('home');
-      showHomeError(data.message || 'The backend rejected the lookup.');
+      showHomeError(data.message || t('lookup.rejected'));
     }
   } catch (err) {
     showScreen('home');
@@ -802,11 +1044,10 @@ async function adjustBy(delta) {
       $('part-name').textContent = data.name;
       $('part-qty').textContent = data.qty;
       vibrate(40);
-      showSnackbar(data.name + ': ' + data.qty + ' in stock');
+      showSnackbar(t('part.stockSnack', { name: data.name, qty: data.qty }));
       if (data.warning === 'audit_failed') {
         // Stay on the card so the warning is actually seen — no auto-return.
-        showPartWarning(data.message ||
-          'Stock was updated, but writing the audit log failed. Check the Audit tab in the Sheet.');
+        showPartWarning(t('part.auditWarnAdjust'));
       } else {
         scheduleAutoReturn();
       }
@@ -814,18 +1055,20 @@ async function adjustBy(delta) {
       if (typeof data.qty === 'number') {
         currentPart.qty = data.qty;
         $('part-qty').textContent = data.qty;
+        showPartError(t('part.belowZero', { qty: data.qty, n: Math.abs(delta) }));
+      } else {
+        showPartError(data.message || t('part.notEnough'));
       }
-      showPartError(data.message || 'Not enough stock to remove that many.');
     } else if (data.error === 'unknown_barcode') {
       // Row vanished from the Sheet mid-flow — treat as a new part.
       showUnknownScreen(currentPart.barcode);
     } else if (data.error === 'unauthorized') {
       signOut();
-      showLockScreen(data.message || 'Your PIN is no longer accepted — enter the current one.');
+      showLockScreen(t('lock.pinChanged'));
     } else if (data.error === 'busy') {
-      showPartError('The backend is busy with another update — try again in a moment.');
+      showPartError(t('part.busyBackend'));
     } else {
-      showPartError(data.message || 'The backend rejected the update.');
+      showPartError(data.message || t('part.rejected'));
     }
   } catch (err) {
     showPartError(err.message);
@@ -857,10 +1100,10 @@ async function createPart() {
   const name = $('unknown-name').value.trim();
   const qtyRaw = $('unknown-qty').value.trim();
   $('unknown-error').hidden = true;
-  if (!name) { showUnknownError('Enter a part name.'); return; }
+  if (!name) { showUnknownError(t('unknown.errName')); return; }
   const qty = qtyRaw === '' ? 1 : Number(qtyRaw);
   if (!Number.isInteger(qty) || qty < 0) {
-    showUnknownError('Starting quantity must be a whole number of 0 or more.');
+    showUnknownError(t('unknown.errQty'));
     return;
   }
   inFlight = true;
@@ -870,22 +1113,21 @@ async function createPart() {
     if (data.ok) {
       vibrate(40);
       showPartCard({ barcode: data.barcode, name: data.name, qty: data.qty });
-      showSnackbar('Added ' + data.name + ' — ' + data.qty + ' in stock');
+      showSnackbar(t('unknown.addedSnack', { name: data.name, qty: data.qty }));
       if (data.warning === 'audit_failed') {
-        showPartWarning(data.message ||
-          'The part was added, but writing the audit log failed. Check the Audit tab in the Sheet.');
+        showPartWarning(t('part.auditWarnCreate'));
       } else {
         scheduleAutoReturn();
       }
     } else if (data.error === 'exists') {
       // Row appeared in the Sheet mid-flow — show the live row instead.
       showPartCard({ barcode: unknownBarcode, name: data.name, qty: data.qty },
-        'This part was already in the inventory — showing its current stock.');
+        t('unknown.existsNotice'));
     } else if (data.error === 'unauthorized') {
       signOut();
-      showLockScreen(data.message || 'Your PIN is no longer accepted — enter the current one.');
+      showLockScreen(t('lock.pinChanged'));
     } else {
-      showUnknownError(data.message || 'The backend rejected the new part.');
+      showUnknownError(data.message || t('unknown.rejected'));
     }
   } catch (err) {
     showUnknownError(err.message);
@@ -903,7 +1145,7 @@ async function openInventory() {
   clearAutoReturn();
   $('inv-error').hidden = true;
   $('inv-filter').value = '';
-  $('inv-status').textContent = 'Loading…';
+  $('inv-status').textContent = t('inv.loading');
   $('inv-list').innerHTML = '';
   showScreen('inventory');
   try {
@@ -913,10 +1155,10 @@ async function openInventory() {
       renderInventory();
     } else if (data.error === 'unauthorized') {
       signOut();
-      showLockScreen(data.message || 'Enter your PIN.');
+      showLockScreen(t('lock.promptDefault'));
     } else {
       $('inv-status').textContent = '';
-      showInvError(data.message || 'The backend rejected the request.');
+      showInvError(data.message || t('inv.rejected'));
     }
   } catch (err) {
     $('inv-status').textContent = '';
@@ -956,11 +1198,11 @@ function renderInventory() {
     list.appendChild(row);
   }
   if (inventoryItems.length === 0) {
-    $('inv-status').textContent = 'No parts yet — scan something to add the first one.';
+    $('inv-status').textContent = t('inv.empty');
   } else if (filter) {
-    $('inv-status').textContent = shown.length + ' of ' + inventoryItems.length + ' parts';
+    $('inv-status').textContent = t('inv.countFiltered', { shown: shown.length, total: inventoryItems.length });
   } else {
-    $('inv-status').textContent = inventoryItems.length + ' parts';
+    $('inv-status').textContent = t('inv.count', { n: inventoryItems.length });
   }
 }
 
@@ -984,7 +1226,7 @@ function showLockScreen(msg) {
     $('lock-error').textContent = msg;
     $('lock-error').hidden = false;
   }
-  setChip('warn', 'PIN needed');
+  setChip('warn', 'chip.pinNeeded');
   showScreen('lock');
 }
 
@@ -997,7 +1239,7 @@ async function unlock() {
   if (inFlight) return;
   const pin = $('lock-pin').value.trim();
   $('lock-error').hidden = true;
-  if (!pin) { showLockError('Enter the PIN.'); return; }
+  if (!pin) { showLockError(t('lock.errEnterPin')); return; }
   inFlight = true;
   setDisabled(['btn-unlock'], true);
   try {
@@ -1010,13 +1252,13 @@ async function unlock() {
         setPin(pin);
         setUserName(data.user || '');
         updateSignedIn();
-        showSnackbar(data.user ? 'Signed in as ' + data.user : 'Signed in');
+        showSnackbar(data.user ? t('auth.signedInAs', { name: data.user }) : t('auth.signedIn'));
         showScreen('home');
       } else {
-        showLockError(data.message || 'Wrong PIN — try again.');
+        showLockError(data.message || t('lock.errWrongPin'));
       }
     } else {
-      showLockError('That URL is not this app\'s backend — check Backend settings.');
+      showLockError(t('lock.errNotThisApp'));
     }
   } catch (err) {
     showLockError(err.message);
@@ -1046,17 +1288,17 @@ async function testAndSave() {
   const url = $('setup-url').value.trim();
   $('setup-error').hidden = true;
   if (!/^https:\/\/script\.google\.com\/.+/i.test(url)) {
-    showSetupError('That does not look like an Apps Script Web App URL — it should start with https://script.google.com/…');
+    showSetupError(t('setup.errBadShape'));
     return;
   }
   inFlight = true;
   setDisabled(['setup-save'], true);
-  setChip('warn', 'Checking…');
+  setChip('warn', 'chip.checking');
   try {
     const data = await pingUrl(url, getPin());
     if (data && data.ok === true && data.app === APP_PING_ID) {
       safeSetStored(url);
-      showSnackbar('Backend connected');
+      showSnackbar(t('setup.connected'));
       if (data.pinRequired && data.pinOk !== true) {
         signOut();
         showLockScreen();
@@ -1066,9 +1308,8 @@ async function testAndSave() {
         showScreen('home');
       }
     } else {
-      setChip('err', 'Wrong backend');
-      showSetupError('That URL answered, but it is not this app\'s backend. ' +
-        'Double-check you copied the Web App URL of the Inventory Scanner script.');
+      setChip('err', 'chip.wrongBackend');
+      showSetupError(t('setup.errWrongApp'));
     }
   } catch (err) {
     showSetupError(err.message);
@@ -1081,10 +1322,13 @@ async function testAndSave() {
 /* --------------------------------- boot -------------------------------- */
 
 function boot() {
+  applyI18n();
+
   if (!window.isSecureContext && !isLocalhost()) {
     $('https-banner').hidden = false;
   }
 
+  $('lang-toggle').addEventListener('click', toggleLang);
   $('btn-scan').addEventListener('click', startScanner);
   $('btn-inventory').addEventListener('click', openInventory);
   $('btn-inv-refresh').addEventListener('click', openInventory);
@@ -1110,7 +1354,7 @@ function boot() {
 
   const url = getApiUrl();
   if (!url) {
-    setChip('warn', 'Setup needed');
+    setChip('warn', 'chip.setupNeeded');
     openSetup();
   } else {
     // PIN-first by default: with no PIN remembered on this device, the app
@@ -1121,10 +1365,10 @@ function boot() {
     } else {
       showLockScreen();
     }
-    setChip('warn', 'Checking…');
+    setChip('warn', 'chip.checking');
     pingUrl(url, getPin()).then((data) => {
       if (!(data && data.ok === true && data.app === APP_PING_ID)) {
-        setChip('err', 'Wrong backend');
+        setChip('err', 'chip.wrongBackend');
       } else if (data.pinRequired && data.pinOk !== true) {
         // No PIN remembered, or this user's PIN changed — sign in first.
         signOut();
