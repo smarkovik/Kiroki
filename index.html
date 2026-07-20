@@ -201,6 +201,44 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
   text-align: center;
 }
 
+.inv-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.inv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-variant);
+  color: inherit;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.inv-row:active { filter: brightness(.94); }
+.inv-name { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
+.inv-code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .76rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.inv-qty {
+  min-width: 46px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.02rem;
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 8px 10px;
+}
+
 .qty { font-size: 72px; font-weight: 700; text-align: center; line-height: 1; letter-spacing: -2px; }
 .qty-label { text-align: center; margin-top: -6px; }
 
@@ -279,7 +317,8 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
         You only do this once — this phone will remember you.</p>
       <label class="fieldlabel" for="lock-pin">Your PIN</label>
       <input id="lock-pin" class="input" type="password" autocomplete="off"
-             autocapitalize="off" spellcheck="false">
+             autocapitalize="off" spellcheck="false"
+             inputmode="numeric" pattern="[0-9]*">
       <p id="lock-error" class="error-text" hidden></p>
       <button id="btn-unlock" class="btn">Sign in</button>
       <button id="lock-settings" class="btn btn-text">Backend settings</button>
@@ -294,6 +333,10 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
     </button>
     <p class="muted center">Point the camera at a part's barcode or QR label
       to add or remove stock.</p>
+    <button id="btn-inventory" class="btn btn-tonal">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h2v2H4zM8 6h12v2H8zM4 11h2v2H4zM8 11h12v2H8zM4 16h2v2H4zM8 16h12v2H8z" fill="currentColor"/></svg>
+      View inventory
+    </button>
     <p id="home-user" class="muted center" hidden></p>
     <button id="btn-switch" class="btn btn-text" hidden>Switch user</button>
     <button id="btn-settings" class="btn btn-text">Backend settings</button>
@@ -304,6 +347,19 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
       <div id="reader"></div>
       <p id="scanner-hint" class="muted center">Starting camera…</p>
       <button id="btn-cancel-scan" class="btn btn-tonal">Cancel</button>
+    </div>
+  </section>
+
+  <section id="screen-inventory" class="screen">
+    <div class="card">
+      <h2>Inventory</h2>
+      <p id="inv-status" class="muted center"></p>
+      <input id="inv-filter" class="input" type="search" autocomplete="off"
+             placeholder="Filter by name or code…">
+      <p id="inv-error" class="error-text" hidden></p>
+      <div id="inv-list" class="inv-list"></div>
+      <button id="btn-inv-refresh" class="btn btn-tonal">Refresh</button>
+      <button id="btn-inv-back" class="btn btn-text">Back</button>
     </div>
   </section>
 
@@ -378,7 +434,7 @@ const SCANNER_CDNS = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['setup', 'lock', 'home', 'scanner', 'busy', 'part', 'unknown'];
+const SCREENS = ['setup', 'lock', 'home', 'scanner', 'inventory', 'busy', 'part', 'unknown'];
 
 let currentPart = null;      // { barcode, name, qty }
 let unknownBarcode = null;
@@ -394,6 +450,10 @@ let setupReturnTo = 'home';
 
 function showScreen(name) {
   for (const s of SCREENS) $('screen-' + s).classList.toggle('active', s === name);
+}
+
+function screenActive(name) {
+  return $('screen-' + name).classList.contains('active');
 }
 
 function vibrate(ms) {
@@ -835,6 +895,75 @@ async function createPart() {
   }
 }
 
+/* ------------------------------- inventory ------------------------------ */
+
+let inventoryItems = [];
+
+async function openInventory() {
+  clearAutoReturn();
+  $('inv-error').hidden = true;
+  $('inv-filter').value = '';
+  $('inv-status').textContent = 'Loading…';
+  $('inv-list').innerHTML = '';
+  showScreen('inventory');
+  try {
+    const data = await apiGet(withPin({ action: 'list' }));
+    if (data.ok) {
+      inventoryItems = data.items || [];
+      renderInventory();
+    } else if (data.error === 'unauthorized') {
+      signOut();
+      showLockScreen(data.message || 'Enter your PIN.');
+    } else {
+      $('inv-status').textContent = '';
+      showInvError(data.message || 'The backend rejected the request.');
+    }
+  } catch (err) {
+    $('inv-status').textContent = '';
+    showInvError(err.message);
+  }
+}
+
+function showInvError(msg) {
+  $('inv-error').textContent = msg;
+  $('inv-error').hidden = false;
+}
+
+function renderInventory() {
+  const filter = $('inv-filter').value.trim().toLowerCase();
+  const list = $('inv-list');
+  list.innerHTML = '';
+  const shown = inventoryItems.filter((it) =>
+    !filter || it.name.toLowerCase().includes(filter) || it.barcode.toLowerCase().includes(filter));
+  for (const it of shown) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'inv-row';
+    const info = document.createElement('span');
+    info.className = 'inv-name';
+    info.textContent = it.name;
+    const code = document.createElement('span');
+    code.className = 'inv-code';
+    code.textContent = it.barcode;
+    info.appendChild(code);
+    const qty = document.createElement('span');
+    qty.className = 'inv-qty';
+    qty.textContent = it.qty;
+    row.appendChild(info);
+    row.appendChild(qty);
+    // Tapping a part opens its card — adjust stock without scanning.
+    row.addEventListener('click', () => showPartCard({ barcode: it.barcode, name: it.name, qty: it.qty }));
+    list.appendChild(row);
+  }
+  if (inventoryItems.length === 0) {
+    $('inv-status').textContent = 'No parts yet — scan something to add the first one.';
+  } else if (filter) {
+    $('inv-status').textContent = shown.length + ' of ' + inventoryItems.length + ' parts';
+  } else {
+    $('inv-status').textContent = inventoryItems.length + ' parts';
+  }
+}
+
 /* --------------------------------- home -------------------------------- */
 
 function showHomeError(msg) {
@@ -957,6 +1086,10 @@ function boot() {
   }
 
   $('btn-scan').addEventListener('click', startScanner);
+  $('btn-inventory').addEventListener('click', openInventory);
+  $('btn-inv-refresh').addEventListener('click', openInventory);
+  $('btn-inv-back').addEventListener('click', () => showScreen('home'));
+  $('inv-filter').addEventListener('input', renderInventory);
   $('btn-settings').addEventListener('click', () => { clearAutoReturn(); setupReturnTo = 'home'; openSetup(); });
   $('lock-settings').addEventListener('click', () => { setupReturnTo = 'lock'; openSetup(); });
   $('btn-switch').addEventListener('click', () => { signOut(); showLockScreen(); });
@@ -980,7 +1113,14 @@ function boot() {
     setChip('warn', 'Setup needed');
     openSetup();
   } else {
-    showScreen('home');
+    // PIN-first by default: with no PIN remembered on this device, the app
+    // assumes a protected backend and asks to sign in before anything else.
+    // It drops to Home on its own if the ping says no PIN is required.
+    if (getPin()) {
+      showScreen('home');
+    } else {
+      showLockScreen();
+    }
     setChip('warn', 'Checking…');
     pingUrl(url, getPin()).then((data) => {
       if (!(data && data.ok === true && data.app === APP_PING_ID)) {
@@ -988,12 +1128,13 @@ function boot() {
       } else if (data.pinRequired && data.pinOk !== true) {
         // No PIN remembered, or this user's PIN changed — sign in first.
         signOut();
-        showLockScreen();
+        if (!screenActive('lock')) showLockScreen();
       } else if (data.pinRequired) {
         setUserName(data.user || '');
         updateSignedIn();
-      } else if (getUserName()) {
-        signOut(); // PINs were switched off — drop the stale identity
+      } else {
+        if (getUserName()) signOut(); // PINs were switched off — drop the stale identity
+        if (screenActive('lock')) showScreen('home');
       }
     }).catch(() => { /* chip already set by apiFetch */ });
   }

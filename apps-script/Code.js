@@ -128,6 +128,29 @@ function buildAuditRow(timestamp, barcode, name, action, qtyChange, resultingQty
   return [timestamp, barcode, name, action, qtyChange, resultingQty, user || ''];
 }
 
+// Raw Inventory rows ([Barcode, Part Name, Quantity]) → list items sorted
+// by name (case-insensitive). Rows with a blank barcode are skipped.
+function buildInventoryList(values) {
+  const items = [];
+  for (let i = 0; i < values.length; i++) {
+    const barcode = normalizeBarcode(values[i][0]);
+    if (!barcode) continue;
+    items.push({
+      barcode: barcode,
+      name: String(values[i][1] === null || values[i][1] === undefined ? '' : values[i][1]),
+      qty: coerceQty(values[i][2])
+    });
+  }
+  items.sort(function (a, b) {
+    const an = a.name.toLowerCase();
+    const bn = b.name.toLowerCase();
+    if (an < bn) return -1;
+    if (an > bn) return 1;
+    return 0;
+  });
+  return items;
+}
+
 // A POST body is only usable if it parses to a plain JSON object.
 function parseBody(text) {
   if (typeof text !== 'string' || text === '') return null;
@@ -193,6 +216,14 @@ function doGet(e) {
         if (auth.message) out.message = auth.message;
       }
       return jsonResponse(out);
+    }
+    if (params.action === 'list') {
+      if (!auth.ok) return jsonResponse(unauthorized(auth.message));
+      const inv = sheets.inventory;
+      const lastRow = inv.getLastRow();
+      const values = lastRow < 2 ? [] : inv.getRange(2, 1, lastRow - 1, 3).getValues();
+      const items = buildInventoryList(values);
+      return jsonResponse({ ok: true, items: items, count: items.length });
     }
     if (params.action === 'lookup') {
       if (!auth.ok) return jsonResponse(unauthorized(auth.message));
@@ -379,6 +410,7 @@ if (typeof module !== 'undefined' && module.exports) {
     applyDelta: applyDelta,
     actionForDelta: actionForDelta,
     buildAuditRow: buildAuditRow,
+    buildInventoryList: buildInventoryList,
     parseBody: parseBody,
     normalizePin: normalizePin,
     parseUserRows: parseUserRows,

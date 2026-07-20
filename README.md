@@ -68,6 +68,9 @@ is the Web App URL you give it during setup.
   immediately, then the camera reopens for the next part.
 - An unknown code is not an error — the app offers to add it as a new part
   with a name and starting quantity.
+- **View inventory** shows the whole stock list on the phone — searchable by
+  name or code, and tapping a part opens its card so you can add/remove
+  without scanning.
 - The stock can never go below zero; the app tells you if there is nothing
   left to remove.
 - Every change is also appended to the **Audit** tab: when, which part,
@@ -129,7 +132,8 @@ The URL is unguessable but it is the only gate, so if it ever gets out:
 2. Create a **New deployment** (same settings) — you get a fresh URL.
 3. Enter the new URL on each phone via **Backend settings**.
 
-The Web App only exposes three operations (ping / lookup / stock write). It
+The Web App only exposes four operations (ping / lookup / inventory list /
+stock write) — the last three require a PIN when users are configured. It
 cannot be used to read other tabs, formulas, files, or anything else in the
 Google account.
 
