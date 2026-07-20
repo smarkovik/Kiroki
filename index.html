@@ -317,7 +317,8 @@ h2 { font-size: 1.35rem; font-weight: 600; text-align: center; }
         You only do this once — this phone will remember you.</p>
       <label class="fieldlabel" for="lock-pin">Your PIN</label>
       <input id="lock-pin" class="input" type="password" autocomplete="off"
-             autocapitalize="off" spellcheck="false">
+             autocapitalize="off" spellcheck="false"
+             inputmode="numeric" pattern="[0-9]*">
       <p id="lock-error" class="error-text" hidden></p>
       <button id="btn-unlock" class="btn">Sign in</button>
       <button id="lock-settings" class="btn btn-text">Backend settings</button>
