@@ -138,7 +138,7 @@ This step gives the script a private web address the phone app will talk to.
    - **Android (Chrome):** tap the **⋮ menu** (top right), tap
      **Add to Home screen**, then **Add**.
 
-> ✅ **Checkpoint:** an *Inventory* icon is on the phone's home screen, and
+> ✅ **Checkpoint:** a *Kiroki* icon is on the phone's home screen, and
 > opening it shows **Scan a part** with a **Connected** chip.
 
 ---
